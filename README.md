@@ -35,12 +35,14 @@ f4 = float4(1.0, 2.0, 3.0, 4.0)
 # Integer
 i = 2
 i2 = int2(1, 2)
-i2 = int3(1, 2)
-i2 = int4(1, 2)
+i3 = int3(1, 2, 3)
+i4 = int4(1, 2, 3, 4)
 
 # String
 s = "foo"
 ```
+
+For vector types all components have to be explicit. So `x = float3(0.0)` won't work, use `x = float3(0.0, 0.0, 0.0)` instead
 
 ## Importing External Functions
 ## Metaprogramming Features
