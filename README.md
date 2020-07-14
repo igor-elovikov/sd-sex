@@ -12,10 +12,10 @@ It looks like this:
 ```python
 # This is one line comment
 
-"""
+'''
 This is multiline
 comment
-"""
+'''
 
 x = 1.0 # assign float value 1.0 to variable [x]
 y = 0.5
