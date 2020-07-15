@@ -20,6 +20,8 @@ sample = samplelum(pos + vector2(x, y), 0, 0) # sample pixel
 ```
 ## Built-in Function Nodes
 ### Constant
+![Constant](https://github.com/igor-elovikov/sd-sex/blob/master/img/constant.png)
+
 All function graph types are supported
 ```python
 # Boolean
@@ -43,6 +45,47 @@ s = "foo"
 ```
 
 For vector types all components have to be explicit. So `x = float3(0.0)` won't work, use `x = float3(0.0, 0.0, 0.0)` instead
+
+### Vector
+![Vector](https://github.com/igor-elovikov/sd-sex/blob/master/img/vector.png)
+
+Swizzling works differently for integer and float types. Components for float vector are `.xyzw` and for integer `.abcd`
+```python
+int_vector = int4(1, 2, 3, 4)
+i = int_vector.ab # [i] is int2(1,2)
+i = int_vector.aaa # [i] is int3(1, 1, 1)
+i = int_vector.dbb # [i] is int3(3, 2, 2)
+
+f_vector = float4(1.0, 2.0, 3.0, 4.0)
+f = f_vector.zyx # [f] is float3(3.0, 2.0, 1.0)
+f = f_vector.ww # [f] is float2(4.0, 4.0)
+
+# etc
+```
+
+
+### Variables
+![Variables](https://github.com/igor-elovikov/sd-sex/blob/master/img/variables.png)
+
+### Samplers
+![Samplers](https://github.com/igor-elovikov/sd-sex/blob/master/img/samplers.png)
+
+
+### Cast
+![Cast](https://github.com/igor-elovikov/sd-sex/blob/master/img/cast.png)
+
+### Operator
+![Operator](https://github.com/igor-elovikov/sd-sex/blob/master/img/operator.png)
+
+### Logical
+![Logical](https://github.com/igor-elovikov/sd-sex/blob/master/img/logical.png)
+
+### Comparison
+![Comparison](https://github.com/igor-elovikov/sd-sex/blob/master/img/comparison.png)
+
+### Conditional
+![Control](https://github.com/igor-elovikov/sd-sex/blob/master/img/control.png)
+
 
 ## Importing External Functions
 ## Metaprogramming Features
