@@ -150,6 +150,7 @@ i3 = toint3(f3) # [i3] id int3(1, 2, 3)
 
 ### Operator
 ![Operator](https://github.com/igor-elovikov/sd-sex/blob/master/img/operator.png)
+
 Like in SD operators work with the same size and the same type variables.
 
 ```python
@@ -191,6 +192,7 @@ v = (v1 + v2 @ 2.0) * float3(5.0, 5.0, 5.0) - (v2 - v1) @ 5.0
 
 ### Logical
 ![Logical](https://github.com/igor-elovikov/sd-sex/blob/master/img/logical.png)
+
 Logical operators are similar to Python
 ```python
 yes = True
@@ -320,6 +322,31 @@ x = tan(v1)
 
 
 ## Exporting Variables
+For FX-Maps SD allows you to use Set/Sequence nodes to output more than one value. See https://docs.substance3d.com/sddoc/using-the-set-sequence-nodes-102400025.html
+
+The plugin also supports this by `export` keyword. Basically you can export any variable in your script to use it later in other function graphs. Just make sure they are evaluated after exporting. As documentation said the usual workflow is to create uber function in top parameter ("Color/Luminocity" for example) and export all the variables there.
+
+ Exporting works like this
+ ```python
+ # some function on top level parameters
+ x = 1.0
+ y = 10.0 * some_value
+ 
+ vec = vector2(x, y)
+ 
+ export(vec)
+ 
+ _OUT_ = 1.0
+ 
+ ```
+
+In other function you just get exported variable
+```python
+# some function evaluated later
+
+vec = get_float2("vec") # be careful: you have to use the correct type getter (float2 in this case)
+```
+
 ## Declaring Graph Inputs
 ## Importing External Functions
 ## Plugin Settings
