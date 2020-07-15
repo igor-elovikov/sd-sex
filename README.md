@@ -212,13 +212,49 @@ four = 4
 
 is_even = four % 2 == 0 # True
 b = one > two # False
-b = four <= 
+b = four <= 4 # True
+b = four != 4 # False
+# etc
 ```
-
 
 ### Conditional
 ![Control](https://github.com/igor-elovikov/sd-sex/blob/master/img/control.png)
+SD basically supports only ternary operator for conditional control. The plugin currently goes with the same limitation so there is no actual branching expressions.
 
+Conditional expression
+```python
+b = True
+x = 5.0 if b else 0.0 # [x] is 5.0
+x = 5.0 if not b else 0.0 # [x] is 0.0
+```
 
+Hovewer you can still do branching it's just not so convenient. Usually you just calculate all branches (all values for the result) and then choose the appropriate by conditional expression
+```python
+
+branch1 = # ... calculate branch 1 ... #
+
+branch2 = # ... calculate branch 2 ... #
+
+condition = trigger > 0
+
+result = branch1 if condition else branch2
+```
+
+Emulating switch expression
+```python
+switch = 3
+
+x = 0.0
+x = 1.0 if switch == 1 else x
+x = 2.0 if switch == 2 else x
+x = 3.0 if switch == 3 else x
+x = 4.0 if switch == 4 else x
+
+# Here [x] is 3.0
+```
+
+## Exporting Variables
+## Declaring Graph Inputs
 ## Importing External Functions
+## Plugin Settings
 ## Metaprogramming Features
