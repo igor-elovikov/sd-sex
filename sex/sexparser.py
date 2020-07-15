@@ -183,7 +183,7 @@ class NodeCreator:
     def _error(self, message: str, operator: ast.Expr):
         raise ParserError(f"[line {operator.lineno}: col {operator.col_offset}] ERROR: {message}")
 
-    def get_package_functions(self, sd_package: sd.api.SDPackage):
+    def get_package_functions(self, sd_package: sd.api.SDPackage, to_lower_case = False):
         functions = sd_package.getChildrenResources(True)
         sd_resource: sd.api.SDResource
 
@@ -195,7 +195,10 @@ class NodeCreator:
             res_type = sd_resource.getType().getId()
 
             if res_type == "SDSBSFunctionGraph":
-                func_name = res_id.lower()
+                if to_lower_case:
+                    func_name = res_id.lower()
+                else:
+                    func_name = res_id
                 func_name = re.sub(r"[-(),.[\]]", "", func_name)
                 if func_name[0].isdigit():
                     func_name = "_" + func_name
@@ -243,7 +246,7 @@ class NodeCreator:
             package_path = os.path.join(resource_path, "packages", package_name)
             functions_package = package_mgr.loadUserPackage(package_path)
 
-        self.imported_functions.update(self.get_package_functions(functions_package))
+        self.imported_functions.update(self.get_package_functions(functions_package, to_lower_case=True))
        
 
     def declare_inputs(self, graph_id: str):
