@@ -379,7 +379,7 @@ x = 2.0 if trigger else 0.0
 
 Currently plugin doesn't support import external function besides standart package `function.sbs` which included in SD. All functions imported automatically. See (https://github.com/igor-elovikov/sd-sex/blob/master/func_list.md) for all the aliases.
 
-(custom libraries will be supported in release version)
+_(custom libraries will be supported in release version)_
 
 Also any function graph in your current package also imported automatically. So if you have a function graph `My_Function` in your package you can use it everywhere inside this package
 
@@ -391,4 +391,24 @@ _OUT_ = x + 2.0
 ```
 
 ## Plugin Settings
+
+In settings.json you can set custom font size for editor. Use it to adjust editor appearance to your DPI
+
 ## Metaprogramming Features
+
+This is a very powerful feature which allows you to write modular and more expressive code. It's based on jinja template engine: https://jinja.palletsprojects.com/
+
+Essentially all the code you write is jinja template which expanded before it goes to compiler. So it's like writing a code that write the actual script. It can be a little bit confusing at the beginning but it's actually a very easy. Basically it's just a text processing.
+
+You can check jinja documentation but the best way to understand it is to look at practical examples. 
+
+_Jinja is set up with line statement `::` so `{% set x = 2 %}` is identical to `:: set x = 2`. Use anything you preferred_
+
+### Most Common Use Cases
+
+These are most common practices for writing expressions. Though you can use any feature included in jinja it's just something that I found the most useful.
+#### For Loops
+#### Template Variables
+#### If-Else Blocks
+#### Macros
+#### Including External File
