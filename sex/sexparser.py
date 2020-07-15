@@ -492,6 +492,9 @@ class NodeCreator:
         sd_resource, inputs_list = self.imported_functions[operator.func.id]
         node = self.create_graph_node_from_resource(sd_resource)
 
+        if len(operator.args) != len(inputs_list):
+            self._error(f"{operator.func.id}() takes {len(inputs_list)} arguments ({len(operator.args)} given)", operator)
+
         for arg, input_name in zip(operator.args, inputs_list):
             input_node = self.parse_operator(arg)
             input_node.newPropertyConnectionFromId(output_id, node, input_name)

@@ -18,7 +18,6 @@ import sexparser
 import sexsyntax
 import jinja2
 
-
 ctx = sd.getContext()
 app = ctx.getSDApplication()
 ui_mgr = app.getUIMgr()
