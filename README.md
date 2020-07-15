@@ -49,6 +49,22 @@ For vector types all components have to be explicit. So `x = float3(0.0)` won't 
 ### Vector
 ![Vector](https://github.com/igor-elovikov/sd-sex/blob/master/img/vector.png)
 
+Float vector constructors
+```python
+one = 1.0
+two = 2.0
+three = 3.0
+four = 4.0
+f2 = vector2(1.0, 2.0) # [f2] is float2(1.0, 2.0)
+f3 = vector3(vector2(1.0, 2.0), 3.0) # [f3] is float3(1.0, 2.0, 3.0)
+f4 = vector4(vector2(1.0, 2.0), vector2(3.0, 4.0)) # [f4] is float4(1.0, 2.0, 3.0, 4.0)
+```
+Built-in constructors are little bit cumbersome for float3 and float4. For those variables you can use merge_float from function.sbs (standart funtions included in SD) instead.
+```python
+f3 = merge_float3(one, two, three) # much better than vector3((vector2(1.0, 2.0), 3.0)
+f4 = merge_float4(one, two, three, four)
+```
+
 Swizzling works differently for integer and float types. Components for float vector are `.xyzw` and for integer `.abcd`
 ```python
 int_vector = int4(1, 2, 3, 4)
@@ -62,7 +78,14 @@ f = f_vector.ww # [f] is float2(4.0, 4.0)
 
 # etc
 ```
+Currently swizzling is supported only as rvalue. So assigning to attributes aren't possible
+```python
+f3 = float3(1.0, 2.0, 3.0)
 
+f3.x = 0.0 # this is not supported!
+
+f3 = merge_float3(0.0, f3.y, f3.z) # use this instead
+```
 
 ### Variables
 ![Variables](https://github.com/igor-elovikov/sd-sex/blob/master/img/variables.png)
