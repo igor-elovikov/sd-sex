@@ -184,7 +184,7 @@ v = v1 ^ v2
 v = dot(v1, v2)
 ```
 
-Arithmetical expressions follows Python grammar rules so you're not limited to just one operator
+All arithmetical and logical expressions follows Python grammar rules so you're not limited to just one operator
 ```python
 v = (v1 + v2 @ 2.0) * float3(5.0, 5.0, 5.0) - (v2 - v1) @ 5.0 
 ```
@@ -219,13 +219,16 @@ b = four != 4 # False
 
 ### Conditional
 ![Control](https://github.com/igor-elovikov/sd-sex/blob/master/img/control.png)
+
 SD basically supports only ternary operator for conditional control. The plugin currently goes with the same limitation so there is no actual branching expressions.
 
 Conditional expression
 ```python
 b = True
+f = 2.0
 x = 5.0 if b else 0.0 # [x] is 5.0
 x = 5.0 if not b else 0.0 # [x] is 0.0
+x = 5.0 if b and (f * 3.0) < 4.0 else 0.0 # you can use any logical expression in condition
 ```
 
 Hovewer you can still do branching it's just not so convenient. Usually you just calculate all branches (all values for the result) and then choose the appropriate by conditional expression
@@ -252,6 +255,69 @@ x = 4.0 if switch == 4 else x
 
 # Here [x] is 3.0
 ```
+
+### Function
+![Function](https://github.com/igor-elovikov/sd-sex/blob/master/img/function.png)
+
+All SD built-in functions are supported. All functions except `min`, `max`, `abs` supports only float arguments. Most of the function work with scalar and vector types. If function accepts vector it performs per component operation (exactly like SD)
+```python
+v1 = float4(1.0, 2.0, 3.0, 4.0)
+v2 = float4(5.0, 6.0, 7.0, 8.0)
+t = 0.5
+
+# 2Pow
+x = pow2(v1)
+
+# Absolute
+x = abs(v1)
+
+# Arc Tangent 2 - only float2 argument
+x = atan2(v1.xy)
+
+# Cartesian - only 2 float scalar arguments 
+x = cartesian(v1.x, v1.y)
+
+# Ceil
+x = ceil(v1)
+
+# Cosine
+x = cos(v1)
+
+# Exponential
+x = exp(v1)
+
+# Floor
+x = floor(v1)
+
+# Linear Interpolation - last argument is float scalar
+x = lerp(v1, v2, t)
+
+# Logarithm - this is a natural logarithm (ln x) SD doesn't say that explicitly
+x = log(v1)
+
+# Logarithm base 2
+x = log2(v1)
+
+# Maximum
+x = max(v1, v2)
+x = max(2, 5) # also supports integer types
+
+# Minimum
+x = min(v1, v2)
+
+# Random - only scalar float arguments
+x = rand(1.0) # [x] is random between 0 and 1.0
+
+# Sine
+x = sin(v1)
+
+# Square Root
+x = sqrt(v1)
+
+# Tangent
+x = tan(v1)
+```
+
 
 ## Exporting Variables
 ## Declaring Graph Inputs
