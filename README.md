@@ -407,7 +407,28 @@ _Jinja is set up with line statement `::` so `{% set x = 2 %}` is identical to `
 ### Most Common Use Cases
 
 These are most common practices for writing expressions. Though you can use any feature included in jinja it's just something that I found the most useful.
+
 #### For Loops
+
+In general loops are very helpful to reduce code duplication.
+
+You can use loops to emulate arrays
+```python
+:: for i in range(5)
+x{{ i }} = {{ i | float }}
+:: endfor
+
+# ---- RESULT ---- #
+
+x0 = 0.0
+x1 = 1.0
+x2 = 2.0
+x3 = 3.0
+x4 = 4.0
+
+```
+
+
 #### Template Variables
 #### If-Else Blocks
 #### Macros
