@@ -348,6 +348,24 @@ vec = get_float2("vec") # be careful: you have to use the correct type getter (f
 ```
 
 ## Declaring Graph Inputs
+There is a helper function to autodeclare all graph inputs. Can be very handy if you have a graph with many inputs.
+
+Say you have graph named `My_Graph` with this example inputs
+
+![Inputs](https://github.com/igor-elovikov/sd-sex/blob/master/img/params.png)
+
+In any function subgraph you can just use this
+```python
+declare_inputs("My_Graph")
+
+# Now you can use inputs straightaway
+
+pos_with_offset = position + float2(0.5, 0.5)
+x = 2.0 if trigger else 0.0
+
+# etc
+```
+
 ## Importing External Functions
 ## Plugin Settings
 ## Metaprogramming Features
