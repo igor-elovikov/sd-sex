@@ -48,6 +48,15 @@ s = "foo"
 
 For vector types all components have to be explicit. So `x = float3(0.0)` won't work, use `x = float3(0.0, 0.0, 0.0)` instead
 
+Note that these are constants declarations, for creating variables use vector functions. 
+```python
+one = 1.0
+two = 2.0
+
+v = float2(one, two) # won't work: float2 accepts constants only
+v = vector2(one, two) # OK
+```
+
 ### Vector
 ![Vector](https://github.com/igor-elovikov/sd-sex/blob/master/img/vector.png)
 
@@ -126,7 +135,7 @@ Note that for input and filtering you have to use explicit constants.
 input_num = 5
 filter = 0
 
-# This is not supported due to how function graph works. Input and filtering can't be mutable
+# This is not supported due to how function graph works. Input and filtering can't be variables
 s = samplecol(float2(0.5, 0.5), input_num, filter) # won't work
 
 s = samplecol(float2(0.5, 0.5), 5, 0) # OK
@@ -367,5 +376,19 @@ x = 2.0 if trigger else 0.0
 ```
 
 ## Importing External Functions
+
+Currently plugin doesn't support import external function besides standart package `function.sbs` which included in SD. All functions imported automatically. See (https://github.com/igor-elovikov/sd-sex/blob/master/func_list.md) for all the aliases.
+
+(custom libraries will be supported in release version)
+
+Also any function graph in your current package also imported automatically. So if you have a function graph `My_Function` in your package you can use it everywhere inside this package
+
+![Function Example](https://github.com/igor-elovikov/sd-sex/blob/master/img/import_func.png)
+
+```python
+x = My_Function() # Use function graph id as function name 
+_OUT_ = x + 2.0
+```
+
 ## Plugin Settings
 ## Metaprogramming Features
