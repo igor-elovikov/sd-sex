@@ -1,5 +1,7 @@
-Degrees to Radians|`deg_to_rad(deg)`
-asin|`asin(x)`
+SD Function | Name And Signature
+--- | --- 
+Degrees to Radians | `deg_to_rad(deg)`
+asin | `asin(x)`
 acos|`acos(x)`
 Even Count|`evencount(Input)`
 oddcount|`oddcount(Input)`
