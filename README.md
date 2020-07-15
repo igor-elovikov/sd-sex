@@ -1,9 +1,9 @@
 # Substance Expressions
 
-Substance Designer Plugin for creating function graphs from code. Includes simple code editor and code generating features
+Substance Designer Plugin for creating function graphs from code. Includes simple editor and code generating features
 
 ## Installation
-Just manually add plugin path to search paths in SD Prefernces:
+Just manually add plugin path to search paths in SD Preferences:
 https://docs.substance3d.com/sddoc/plugin-search-paths-172825000.html
 ## The Language
 The plugin uses Python AST so it's syntactically Python with the expected results. However it supports a very limited featureset of Python, basically just plain arithmetic and logical expressions and function calls.
@@ -259,7 +259,7 @@ x = 4.0 if switch == 4 else x
 ### Function
 ![Function](https://github.com/igor-elovikov/sd-sex/blob/master/img/function.png)
 
-All SD built-in functions are supported. All functions except `min`, `max`, `abs` supports only float arguments. Most of the function work with scalar and vector types. If function accepts vector it performs per component operation (exactly like SD)
+All SD built-in functions are supported. All functions except `min`, `max`, `abs` accept only float arguments. Most of the function work with scalar and vector types. If function accepts vector it performs per component operation (exactly like SD)
 ```python
 v1 = float4(1.0, 2.0, 3.0, 4.0)
 v2 = float4(5.0, 6.0, 7.0, 8.0)
