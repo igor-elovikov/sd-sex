@@ -18,8 +18,8 @@ pos = get_float2("$pos") # get system variable $pos for pixel processor
 
 sample = samplelum(pos + vector2(x, y), 0, 0) # sample pixel 
 ```
-
-### Types
+## Built-in Function Nodes
+### Constant
 All function graph types are supported
 ```python
 # Boolean
