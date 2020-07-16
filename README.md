@@ -347,8 +347,36 @@ x = sqrt(v1)
 x = tan(v1)
 ```
 
+## Output Value
+
+To mark expression as output value just assign it to special variable __`_OUT_`__
+```python
+_OUT_ = 10 
+```
+
+Just make sure that the type of expression result is the similar as expected type for the graph (if it has one). 
+
+## Type Checking
+
+This is something that I'm working on. Currently there are no type checks so something like this compiles
+
+```python
+x = 1.0 + 2 # Adding float and integer values
+``` 
+
+The graph would be created without any errors but it will be broken because SD don't do any implicit conversion. 
+
+![Broken Graph](https://github.com/igor-elovikov/sd-sex/blob/master/img/broken_graph.png)
+
+That means you have to be very careful with types and always check if you have any red lines int the result graph. For the example above you should fix it with explicit type conversion according to the result type you want
+
+```python
+x = toint(1.0) + 2 # OK [x] is integer value 3
+x = 1.0 + tofloat(2) # OK [x] is float value 3.0
+```
 
 ## Exporting Variables
+
 For FX-Maps SD allows you to use Set/Sequence nodes to output more than one value. See https://docs.substance3d.com/sddoc/using-the-set-sequence-nodes-102400025.html
 
 The plugin also supports this by `export` keyword. Basically you can export any variable in your script to use it later in other function graphs. Just make sure they are evaluated after exporting. As documentation said the usual workflow is to create uber function in top parameter ("Color/Luminocity" for example) and export all the variables there.
@@ -422,15 +450,13 @@ You can check jinja documentation but the best way to understand it is to look a
 
 _Jinja is set up with line statement `::` so `{% set x = 2 %}` is identical to `:: set x = 2`. Use anything you preferred_
 
-### Most Common Use Cases
+### Examples
 
 These are most common practices for writing expressions. Though you can use any feature included in jinja it's just something that I found the most useful.
 
 #### For Loops
 
-In general loops are very helpful to reduce code duplication.
-
-You can use loops to emulate arrays
+Loops can be used to emulate arrays
 ```python
 :: for i in range(5)
 x{{ i }} = {{ i | float }}
@@ -446,6 +472,54 @@ x4 = 4.0
 
 ```
 
+Also very useful to sample neighbour pixels.
+
+Basic 3x3 box blur
+```python
+size = get_float2("$size")
+pos = get_float2("$pos")
+
+total_lum = 0.0
+
+:: for x in range(-1, 2)
+:: for y in range(-1, 2)
+offset = vector2({{ x | float }}, {{ y | float }})
+total_lum = total_lum + samplelum(pos + offset / size, 0, 0)
+:: endfor
+:: endfor
+
+_OUT_ = total_lum / 9.0
+
+# ---- RESULT ---- #
+
+size = get_float2("$size")
+pos = get_float2("$pos")
+
+total_lum = 0.0
+
+offset = vector2(-1.0, -1.0)
+total_lum = total_lum + samplelum(pos + offset / size, 0, 0)
+offset = vector2(-1.0, 0.0)
+total_lum = total_lum + samplelum(pos + offset / size, 0, 0)
+offset = vector2(-1.0, 1.0)
+total_lum = total_lum + samplelum(pos + offset / size, 0, 0)
+offset = vector2(0.0, -1.0)
+total_lum = total_lum + samplelum(pos + offset / size, 0, 0)
+offset = vector2(0.0, 0.0)
+total_lum = total_lum + samplelum(pos + offset / size, 0, 0)
+offset = vector2(0.0, 1.0)
+total_lum = total_lum + samplelum(pos + offset / size, 0, 0)
+offset = vector2(1.0, -1.0)
+total_lum = total_lum + samplelum(pos + offset / size, 0, 0)
+offset = vector2(1.0, 0.0)
+total_lum = total_lum + samplelum(pos + offset / size, 0, 0)
+offset = vector2(1.0, 1.0)
+total_lum = total_lum + samplelum(pos + offset / size, 0, 0)
+
+_OUT_ = total_lum / 9.0
+```
+
+Be careful with loops and always check the generated code. It's very easy to create a huge graph especially with nested loops. 
 
 #### Template Variables
 #### If-Else Blocks
