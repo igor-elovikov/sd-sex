@@ -24,7 +24,7 @@ When you open the editor plugin creates a frame object named _Snippet_. Don't de
 
 
 ## The Language
-The plugin uses Python AST so it's syntactically Python with the expected results. However it supports a very limited featureset of Python, basically just plain arithmetic and logical expressions and function calls.
+The plugin uses Python AST so it's syntactically Python with the expected results. However it supports a very limited feature set of Python, basically just plain arithmetic and logical expressions and function calls.
 
 It looks like this:
 ```python
@@ -577,6 +577,20 @@ total_lum = total_lum + samplelum(pos + offset / size, 0, 0) * 0.25
 
 _OUT_ = total_lum 
 
+```
+
+Variables can be also useful where you need to use explicit constants and you want to use the same one in many places.
+For example you can create a setting for sample filtering.
+
+```python
+# 0 for Nearest and 1 for Bilinear
+:: set filter = 1
+
+sample = samplelum(pos, 0, {{ filter }})
+
+# ---- RESULT ---- #
+
+sample = samplelum(pos, 0, 1)
 ```
 
 #### Macros
