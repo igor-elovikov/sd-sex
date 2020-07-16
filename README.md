@@ -446,6 +446,8 @@ This is a very powerful feature which allows you to write modular and more expre
 
 Essentially all the code you write is jinja template which expanded before it goes to compiler. So it's like writing a code that write the actual script. It can be a little bit confusing at the beginning but it's actually a very easy. Basically it's just a text processing.
 
+
+
 You can check jinja documentation but the best way to understand it is to look at practical examples. 
 
 _Jinja is set up with line statement `::` so `{% set x = 2 %}` is identical to `:: set x = 2`. Use anything you preferred_
@@ -522,6 +524,83 @@ _OUT_ = total_lum / 9.0
 Be careful with loops and always check the generated code. It's very easy to create a huge graph especially with nested loops. 
 
 #### Template Variables
-#### If-Else Blocks
+
+Let's extend the box blur example to use kernel matrix.
+
+```python
+size = get_float2("$size")
+pos = get_float2("$pos")
+
+# Gaussian 3x3 kernel
+:: set kernel = [(0.0625, 0.125, 0.0625), (0.125, 0.25, 0.125), (0.0625, 0.125, 0.0625)]
+
+total_lum = 0.0
+
+:: for x in range(-1, 2)
+:: for y in range(-1, 2)
+offset = vector2({{ x | float }}, {{ y | float }})
+total_lum = total_lum + samplelum(pos + offset / size, 0, 0) * {{ kernel[x][y] }}
+:: endfor
+:: endfor
+
+_OUT_ = total_lum 
+
+# ---- RESULT ---- #
+
+size = get_float2("$size")
+pos = get_float2("$pos")
+
+total_lum = 0.0
+
+offset = vector2(-1.0, -1.0)
+total_lum = total_lum + samplelum(pos + offset / size, 0, 0) * 0.0625
+offset = vector2(-1.0, 0.0)
+total_lum = total_lum + samplelum(pos + offset / size, 0, 0) * 0.0625
+offset = vector2(-1.0, 1.0)
+total_lum = total_lum + samplelum(pos + offset / size, 0, 0) * 0.125
+offset = vector2(0.0, -1.0)
+total_lum = total_lum + samplelum(pos + offset / size, 0, 0) * 0.0625
+offset = vector2(0.0, 0.0)
+total_lum = total_lum + samplelum(pos + offset / size, 0, 0) * 0.0625
+offset = vector2(0.0, 1.0)
+total_lum = total_lum + samplelum(pos + offset / size, 0, 0) * 0.125
+offset = vector2(1.0, -1.0)
+total_lum = total_lum + samplelum(pos + offset / size, 0, 0) * 0.125
+offset = vector2(1.0, 0.0)
+total_lum = total_lum + samplelum(pos + offset / size, 0, 0) * 0.125
+offset = vector2(1.0, 1.0)
+total_lum = total_lum + samplelum(pos + offset / size, 0, 0) * 0.25
+
+_OUT_ = total_lum 
+
+```
+
 #### Macros
+
+Macro is like a function that can help you to reduce code duplication.
+
+Let's say you want to muliply a value by factor but leave it unchanged if factor is zero. Of course you can create a function for that but sometimes it's just easier to write a macro.
+
+```python
+:: macro apply_modifier(value, modifier)
+{{ value }} = {{ value }} * {{ modifier }} if {{ modifier }} > 0.0 else {{ value }}
+:: endmacro
+
+x = 1.0
+f = 0.0
+
+{{ apply_modifier("x", "f") }}
+
+# ---- RESULT ---- #
+
+x = 1.0
+f = 0.0
+
+x = x * f if f > 0.0 else x
+```
+
+In this particular case it's probably easier to do without macros but when operations become more complicated macros are must. Especially when you iterate on code and suddenly decide to make some changes on this kind of operation. With macro you just tweak it in one place and recompile.
+
 #### Including External File
+
+#### If-Else Blocks
