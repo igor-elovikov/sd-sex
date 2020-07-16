@@ -22,7 +22,7 @@ Just click _Expression_ button to open the editor.
 
 To create a graph just click _COMPILE_ button. That's it.
 
-When you open the editor plugin creates a frame object named _Snippet_. Don't delete it as it holds the actual code for the graph. Code will be saved to the snippet object when you hit _COMPILE_ so be careful before you close the editor - even if you're not finished just try to compile it to save.
+When you open the editor the plugin creates a frame object named _Snippet_. Don't delete it as it holds the actual code for the graph. Code will be saved to the snippet object when you hit _COMPILE_ so be careful before you close the editor - even if you're not finished just try to compile it to save.
 
 
 ## The Language
@@ -425,7 +425,9 @@ x = 2.0 if trigger else 0.0
 
 ## Importing External Functions
 
-Currently plugin doesn't support import external function besides standart package `function.sbs` which included in SD. All functions imported automatically. See (https://github.com/igor-elovikov/sd-sex/blob/master/func_list.md) for all the aliases.
+Currently plugin doesn't support import external function besides standart package `function.sbs` which included in SD. All functions from `function.sbs` imported automatically. See (https://github.com/igor-elovikov/sd-sex/blob/master/func_list.md) for all the aliases.
+
+Sometimes when you open the editor you see `function.sbs` opened in your packages. Currently this is the only way to resolve dependencies (load the package). However if your package already have dependency on `function.sbs` it won't happen. So basically it happens only when working on some graph from scratch.
 
 _(custom libraries will be supported in release version)_
 
