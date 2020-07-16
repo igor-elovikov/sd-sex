@@ -665,6 +665,7 @@ _OUT_ = uniform_f4_ab(float4(0.0, 0.0, 0.0, 0.0), float4(1.0, 1.0, 1.0, 1.0))
 :: else
 _OUT_ = uniform_ab(0.0, 1.0)
 :: endif
+```
 
 Then in the snippet
 ```python
