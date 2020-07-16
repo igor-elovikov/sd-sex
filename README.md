@@ -5,6 +5,24 @@ Substance Designer Plugin for creating function graphs from code. Includes simpl
 ## Installation
 Just manually add plugin path to search paths in SD Preferences:
 https://docs.substance3d.com/sddoc/plugin-search-paths-172825000.html
+
+After that you shoud see this toolbar with any function graph opened
+
+![Toolbar](https://github.com/igor-elovikov/sd-sex/blob/master/img/toolbar.png)
+
+_(on MacOS created toolbars aren't active by default so you would need to click on IE icon first to see Expression button)_
+
+## Usage
+
+Just click _Expression_ button to open the editor.
+
+![Editor](https://github.com/igor-elovikov/sd-sex/blob/master/img/editor.png)
+
+To create a graph just click _COMPILE_ button. That's it.
+
+When you open the editor plugin creates a frame object named _Snippet_. Don't delete it as it holds the actual code for the graph. Code will be saved to the snippet object when you hit _COMPILE_ so be careful before you close the editor - even if you're not finished just try to compile it to save.
+
+
 ## The Language
 The plugin uses Python AST so it's syntactically Python with the expected results. However it supports a very limited featureset of Python, basically just plain arithmetic and logical expressions and function calls.
 
