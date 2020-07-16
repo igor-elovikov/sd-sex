@@ -2,6 +2,8 @@
 
 Substance Designer Plugin for creating function graphs from code. Includes simple editor and code generating features
 
+__Public Beta version. It's working but some breaking changes can be introduced__
+
 ## Installation
 Just manually add plugin path to search paths in SD Preferences:
 https://docs.substance3d.com/sddoc/plugin-search-paths-172825000.html (You need to add path to the root where README.md is located)
