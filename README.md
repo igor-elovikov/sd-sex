@@ -442,9 +442,9 @@ In settings.json you can set custom font size for editor. Use it to adjust edito
 
 ## Metaprogramming Features
 
-This is a very powerful feature which allows you to write modular and more expressive code. It's based on jinja template engine: https://jinja.palletsprojects.com/
+This is a very powerful feature which allows you to write modular and more expressive code. It's based on Jinja template engine: https://jinja.palletsprojects.com/
 
-Essentially all the code you write is jinja template which expanded before it goes to compiler. So it's like writing a code that write the actual script. It can be a little bit confusing at the beginning but it's actually very easy. Basically it's just a text processing.
+Essentially all the code you write is Jinja template which expanded before it goes to compiler. So it's like writing a code that write the actual script. It can be a little bit confusing at the beginning but it's actually very easy. Basically it's just a text processing.
 
 To check the generated code just click _View Generated Code_ tab in the editor. Try to switch to it from time to time to see how your code looks like and to make sure your template doesn't have any errors. Every time you switch to this tab plugin tries to expand your template and if there's any errors you see them in console output.
 
@@ -452,13 +452,13 @@ Check the Jinja documentation but to start the best way to understand it is to l
 
 ### Jinja Environment
 
-Jinja is set up with line statement `::` so `{% set x = 2 %}` is identical to `:: set x = 2`. Use anything you preferred
+Jinja is set up with line statement `::` so `{% set x = 2 %}` is identical to `:: set x = 2`. Use anything you prefer
 
 Also the path to any external file is set to package path. So if you have any external source files just put them in the same directory with your .SBS file.
 
 ### Examples
 
-These are most common practices for writing expressions. Though you can use any feature included in jinja it's just something that I found the most useful.
+These are most common practices for writing expressions. Though you can use any feature included in Jinja it's just something that I found the most useful.
 
 #### For Loops
 
