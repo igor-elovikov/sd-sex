@@ -141,7 +141,7 @@ i4 = get_float4("my_int4_var")
 ### Samplers
 ![Samplers](https://github.com/igor-elovikov/sd-sex/blob/master/img/samplers.png)
 
-For sampling use `samplelum(uv, input, filtering)` for grayscale or `samplecol(uv, input, filtering)` for grayscale. 
+For sampling use `samplelum(uv, input, filtering)` for grayscale or `samplecol(uv, input, filtering)` for color. 
 
 
 `samplelum` returns float and `samplecol` returns float4
@@ -323,7 +323,7 @@ x = floor(v1)
 # Linear Interpolation - last argument is float scalar
 x = lerp(v1, v2, t)
 
-# Logarithm - this is a natural logarithm (ln x) SD doesn't say that explicitly
+# Logarithm 
 x = log(v1)
 
 # Logarithm base 2
@@ -431,7 +431,7 @@ Sometimes when you open the editor you see `function.sbs` opened in your package
 
 _(custom libraries will be supported in release version)_
 
-Also any function graph in your current package also imported automatically. So if you have a function graph `My_Function` in your package you can use it everywhere inside this package
+Also any function graph in your current package imported automatically. So if you have a function graph `My_Function` in your package you can use it everywhere inside this package
 
 ![Function Example](https://github.com/igor-elovikov/sd-sex/blob/master/img/import_func.png)
 
