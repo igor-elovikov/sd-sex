@@ -4,7 +4,7 @@ Substance Designer Plugin for creating function graphs from code. Includes simpl
 
 ## Installation
 Just manually add plugin path to search paths in SD Preferences:
-https://docs.substance3d.com/sddoc/plugin-search-paths-172825000.html
+https://docs.substance3d.com/sddoc/plugin-search-paths-172825000.html (You need to add path to the root where README.md is located)
 
 After that you shoud see this toolbar with any function graph opened
 
@@ -444,13 +444,17 @@ In settings.json you can set custom font size for editor. Use it to adjust edito
 
 This is a very powerful feature which allows you to write modular and more expressive code. It's based on jinja template engine: https://jinja.palletsprojects.com/
 
-Essentially all the code you write is jinja template which expanded before it goes to compiler. So it's like writing a code that write the actual script. It can be a little bit confusing at the beginning but it's actually a very easy. Basically it's just a text processing.
+Essentially all the code you write is jinja template which expanded before it goes to compiler. So it's like writing a code that write the actual script. It can be a little bit confusing at the beginning but it's actually very easy. Basically it's just a text processing.
 
+To check the generated code just click _View Generated Code_ tab in the editor. Try to switch to it from time to time to see how your code looks like and to make sure your template doesn't have any errors. Every time you switch to this tab plugin tries to expand your template and if there's any errors you see them in console output.
 
+Check the Jinja documentation but to start the best way to understand it is to look at practical examples. 
 
-You can check jinja documentation but the best way to understand it is to look at practical examples. 
+### Jinja Environment
 
-_Jinja is set up with line statement `::` so `{% set x = 2 %}` is identical to `:: set x = 2`. Use anything you preferred_
+Jinja is set up with line statement `::` so `{% set x = 2 %}` is identical to `:: set x = 2`. Use anything you preferred
+
+Also the path to any external file is set to package path. So if you have any external source files just put them in the same directory with your .SBS file.
 
 ### Examples
 
@@ -601,6 +605,61 @@ x = x * f if f > 0.0 else x
 
 In this particular case it's probably easier to do without macros but when operations become more complicated macros are must. Especially when you iterate on code and suddenly decide to make some changes on this kind of operation. With macro you just tweak it in one place and recompile.
 
+#### Importing Macros
+
+You can put often used macros in external file and then import it to your code. It works similarly to Python import.
+
+So for our example above we can put our macro in some file like `macros.sex`. Then we can just import it and use
+
+```python
+:: import "macros.sex" as macros
+
+x = 1.0
+f = 0.0
+
+{{ macros.apply_modifier("x", "f") }}
+
+# ---- RESULT ---- #
+
+x = 1.0
+f = 0.0
+
+x = x * f if f > 0.0 else x
+```
+
+Note that `macros.sex` has to be in the same directory as your package
+
 #### Including External File
 
+You can also just include any external file to your snippet. It's literally like a pasting files content to the code.
+That can be very useful when you share some code between graphs.
+
+```python
+:: inlcude "blur.sex"
+```
+
+The generated code would be the content of `blur.sex` file
+
 #### If-Else Blocks
+
+Use If-Else blocks for compile-time branching. One of the examples is creating a template in external file which can be altered by some settings. 
+
+For example we can create a file `color_or_grayscale.sex` with this code
+```python
+:: if color
+_OUT_ = uniform_f4_ab(float4(0.0, 0.0, 0.0, 0.0), float4(1.0, 1.0, 1.0, 1.0))
+:: else
+_OUT_ = uniform_ab(0.0, 1.0)
+:: endif
+
+Then in the snippet
+```python
+:: set color = true
+:: include "color_or_grayscale.sex"
+
+# ---- RESULT ---- #
+
+_OUT_ = uniform_f4_ab(float4(0.0, 0.0, 0.0, 0.0), float4(1.0, 1.0, 1.0, 1.0))
+```
+
+Depending on the `color` setting we can choose the branch for our code. 
