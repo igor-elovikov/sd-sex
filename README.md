@@ -547,7 +547,7 @@ total_lum = 0.0
 :: for x in range(-1, 2)
 :: for y in range(-1, 2)
 offset = vector2({{ x | float }}, {{ y | float }})
-total_lum = total_lum + samplelum(pos + offset / size, 0, 0) * {{ kernel[x][y] }}
+total_lum = total_lum + samplelum(pos + offset / size, 0, 0) * {{ kernel[x + 1][y + 1] }}
 :: endfor
 :: endfor
 
@@ -555,29 +555,24 @@ _OUT_ = total_lum
 
 # ---- RESULT ---- #
 
-size = get_float2("$size")
-pos = get_float2("$pos")
-
-total_lum = 0.0
-
 offset = vector2(-1.0, -1.0)
 total_lum = total_lum + samplelum(pos + offset / size, 0, 0) * 0.0625
 offset = vector2(-1.0, 0.0)
-total_lum = total_lum + samplelum(pos + offset / size, 0, 0) * 0.0625
-offset = vector2(-1.0, 1.0)
 total_lum = total_lum + samplelum(pos + offset / size, 0, 0) * 0.125
+offset = vector2(-1.0, 1.0)
+total_lum = total_lum + samplelum(pos + offset / size, 0, 0) * 0.0625
 offset = vector2(0.0, -1.0)
-total_lum = total_lum + samplelum(pos + offset / size, 0, 0) * 0.0625
+total_lum = total_lum + samplelum(pos + offset / size, 0, 0) * 0.125
 offset = vector2(0.0, 0.0)
-total_lum = total_lum + samplelum(pos + offset / size, 0, 0) * 0.0625
+total_lum = total_lum + samplelum(pos + offset / size, 0, 0) * 0.25
 offset = vector2(0.0, 1.0)
 total_lum = total_lum + samplelum(pos + offset / size, 0, 0) * 0.125
 offset = vector2(1.0, -1.0)
-total_lum = total_lum + samplelum(pos + offset / size, 0, 0) * 0.125
+total_lum = total_lum + samplelum(pos + offset / size, 0, 0) * 0.0625
 offset = vector2(1.0, 0.0)
 total_lum = total_lum + samplelum(pos + offset / size, 0, 0) * 0.125
 offset = vector2(1.0, 1.0)
-total_lum = total_lum + samplelum(pos + offset / size, 0, 0) * 0.25
+total_lum = total_lum + samplelum(pos + offset / size, 0, 0) * 0.0625
 
 _OUT_ = total_lum 
 
