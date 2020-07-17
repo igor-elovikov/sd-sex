@@ -554,6 +554,10 @@ total_lum = total_lum + samplelum(pos + offset / size, 0, 0) * {{ kernel[x + 1][
 _OUT_ = total_lum 
 
 # ---- RESULT ---- #
+size = get_float2("$size")
+pos = get_float2("$pos")
+
+total_lum = 0.0
 
 offset = vector2(-1.0, -1.0)
 total_lum = total_lum + samplelum(pos + offset / size, 0, 0) * 0.0625
