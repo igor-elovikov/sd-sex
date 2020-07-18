@@ -232,6 +232,8 @@ b = yes or no # True
 b = not yes # False
 ```
 
+_Currently it requires some work. It doesn't support consequent operands ie `yes and yes and yes` won't compile. You have to use `(yes and yes) and yes`. Will be fixed in release version_
+
 ### Comparison
 ![Comparison](https://github.com/igor-elovikov/sd-sex/blob/master/img/comparison.png)
 
