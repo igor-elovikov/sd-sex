@@ -190,7 +190,7 @@ v2 = float3(1.0, 2.0, 3.0)
 v = v1 + v2
 
 # Subtraction
-v = v1 + v2
+v = v1 - v2
 
 # Negation
 v = -v1
