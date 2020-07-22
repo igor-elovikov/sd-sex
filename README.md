@@ -132,10 +132,10 @@ f2 = get_float2("my_float2_var")
 f3 = get_float3("my_float3_var")
 f4 = get_float4("my_float4_var")
 
-i = get_float("my_int_var")
-i2 = get_float2("my_int2_var")
-i3 = get_float3("my_int3_var")
-i4 = get_float4("my_int4_var")
+i = get_int("my_int_var")
+i2 = get_int2("my_int2_var")
+i3 = get_int3("my_int3_var")
+i4 = get_int4("my_int4_var")
 ```
 
 ### Samplers
