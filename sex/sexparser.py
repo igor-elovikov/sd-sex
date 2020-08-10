@@ -634,6 +634,21 @@ class NodeCreator:
 
         for expr in expressions:
             expr_node = self.parse_operator(expr.value)
+            if expr_node:
+                node_inputs = expr_node.getProperties(sd.api.sdproperty.SDPropertyCategory.Input)
+
+                n_input: sd.api.SDProperty
+                for input_index, n_input in enumerate(node_inputs):
+                    if n_input.isConnectable():
+                        input_connections = expr_node.getPropertyConnections(n_input)
+                        if len(input_connections):
+                            prop_connection: sd.api.SDConnection = input_connections[0]
+                            in_type = prop_connection.getInputProperty().getType().getId()
+                            out_type = prop_connection.getOutputProperty().getType().getId()
+
+                            if in_type != out_type:
+                                self._error(f"Type mismatch for parameter [{input_index + 1}]: {out_type} was expected ({in_type} was received)", expr)
+
             if isinstance(expr, ast.Assign):
                 assign_operator: ast.Assign = expr
                 variable_name = assign_operator.targets[0].id
