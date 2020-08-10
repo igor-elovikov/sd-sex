@@ -25,15 +25,68 @@ qt_mgr = app.getQtForPythonUIMgr()
 
 parser = sexparser.NodeCreator()
 
+class PluginSettings:
+    def __init__(self):
+        self._json_defaults = \
+        """
+{
+    "window_size": [
+        1463,
+        952
+    ],
+    "editor_font_size": 11,
+    "console_font_size": 10,
+    "tab_font_size": 11,
+    "button_font_size": 13,
+    "tab_spaces": 4,
+    "window_pos": [
+        233,
+        229
+    ]
+}        
+        """
+        path = os.path.dirname(os.path.abspath(__file__))
+        self.settings_file_path = os.path.join(path, "settings.json")
+        self.settings = {}
+        self.defaults = json.loads(self._json_defaults)
+        self.load()
+       
+    def __getitem__(self, key):
+        if key in self.settings:
+            return self.settings[key]
+        elif key in self.defaults:
+            return self.defaults[key]
+        else:
+            raise KeyError(f"No setting [{key}]!")
+
+    def __setitem__(self, key, value):
+        self.settings[key] = value
+
+    def load(self):
+        settings_file_exists = os.path.isfile(self.settings_file_path)
+        if settings_file_exists:
+            with open(self.settings_file_path) as settings_file:
+                self.settings = json.load(settings_file)
+
+    def save(self):
+        settings_to_save = self.defaults.copy()
+        settings_to_save.update(self.settings)
+        with open(self.settings_file_path, "w") as settings_file:
+            json.dump(settings_to_save, settings_file, indent=4)
+    
+
 class MainWindow(QMainWindow):
 
-    def __init__(self, parent=None, graph=None, plugin_settings=None):
+    def __init__(self, parent=None, graph=None):
         super(MainWindow, self).__init__(parent)
+        plugin_settings = PluginSettings()
+        self.plugin_settings = plugin_settings
         self.graph = graph
         self.ui = sexeditor.Ui_MainWindow()
         self.ui.setupUi(self)
         self.ui.code_editor.setup_editor(plugin_settings["editor_font_size"])
         self.ui.render_view.setup_editor(plugin_settings["editor_font_size"])
+        self.ui.code_editor.tab_spaces = plugin_settings["tab_spaces"]
         button_font = self.ui.compile.font()
         button_font.setPointSize(plugin_settings["button_font_size"])
         self.ui.compile.setFont(button_font)
@@ -66,15 +119,14 @@ class MainWindow(QMainWindow):
         font.setPointSize(plugin_settings["editor_font_size"])
         QApplication.setFont(font, "CodeEditor")
 
-        if "window_size" in plugin_settings and "window_pos" in plugin_settings:
-            width = plugin_settings["window_size"][0]
-            height = plugin_settings["window_size"][1]
-            pos_x = plugin_settings["window_pos"][0]
-            pos_y = plugin_settings["window_pos"][1]
-            #self.setGeometry(pos_x, pos_y, width, height)
-            self.move(pos_x, pos_y)
-            self.width = width
-            self.height = height 
+        width = plugin_settings["window_size"][0]
+        height = plugin_settings["window_size"][1]
+        pos_x = plugin_settings["window_pos"][0]
+        pos_y = plugin_settings["window_pos"][1]
+        #self.setGeometry(pos_x, pos_y, width, height)
+        self.move(pos_x, pos_y)
+        self.width = width
+        self.height = height 
 
        
 
@@ -110,17 +162,9 @@ class MainWindow(QMainWindow):
         return list(result)
 
     def closeEvent(self, event):
-        path = os.path.dirname(os.path.abspath(__file__))
-        with open(os.path.join(path, "settings.json")) as json_settings:
-            plugin_settings = json.load(json_settings)
-
-        plugin_settings["window_size"] = [self.width, self.height]
-        plugin_settings["window_pos"] = [self.pos().x(), self.pos().y()]
-
-        with open(os.path.join(path, "settings.json"), "w") as json_settings:
-            json.dump(plugin_settings, json_settings, indent=4)
-
-        event.accept()
+        self.plugin_settings["window_size"] = [self.width, self.height]
+        self.plugin_settings["window_pos"] = [self.pos().x(), self.pos().y()]
+        self.plugin_settings.save()
 
     def tab_change(self, tab_index):
         if tab_index == 1:
@@ -131,7 +175,8 @@ class MainWindow(QMainWindow):
                 self.console_message(str(e))
                 return
             
-            self.ui.render_view.setPlainText(src)
+            stripped_src = "\n".join([line.lstrip() for line in src.splitlines()])
+            self.ui.render_view.setPlainText(stripped_src)
 
 
     def get_rendered_code(self, code):
@@ -183,7 +228,8 @@ class MainWindow(QMainWindow):
             self.console_message(str(e))
             return
         try:
-            ast_tree = ast.parse(src, mode="exec")
+            stripped_src = "\n".join([line.lstrip() for line in src.splitlines()])
+            ast_tree = ast.parse(stripped_src, mode="exec")
         except SyntaxError as err:
             self.console_message(str(err))
             self.console_message(err.text)
@@ -211,17 +257,13 @@ class SexToolBar(QToolBar):
         act.triggered.connect(self.open_sex_window)
 
     def open_sex_window(self):
-        path = os.path.dirname(os.path.abspath(__file__))
-        with open(os.path.join(path, "settings.json")) as json_settings:
-            plugin_settings = json.load(json_settings)
-
         parser.import_functions("functions.sbs", app)
         parser.import_current_graph_functions(app)
 
         main_sd_window = qt_mgr.getMainWindow()
         graph = ui_mgr.getCurrentGraph()
 
-        window = MainWindow(main_sd_window, graph, plugin_settings=plugin_settings)
+        window = MainWindow(main_sd_window, graph)
         window.show()
 
         src: str

@@ -38,6 +38,7 @@ class CodeEditor(QPlainTextEdit):
         self.font_size = 0
         self.line_color = QColor("#7f848b")
         self.char_width = 0
+        self.tab_spaces = 4
 
         self.lineNumberArea = QLineNumberArea(self)
         self.blockCountChanged.connect(self.update_line_number_area_width)
@@ -136,6 +137,14 @@ class CodeEditor(QPlainTextEdit):
         tc.movePosition(QTextCursor.EndOfWord)
         tc.insertText(completion[-extra:])
 
+    def get_current_line(self):
+        text_cursor = self.textCursor()
+        return text_cursor.block().text()
+
+    def get_previous_line(self):
+        text_cursor = self.textCursor()
+        return text_cursor.block().previous().text()
+
     def textUnderCursor(self):
         tc = self.textCursor()
         tc.select(QTextCursor.WordUnderCursor)
@@ -170,8 +179,22 @@ class CodeEditor(QPlainTextEdit):
                 event.ignore()
                 #print("Event ignored")
                 return
-       
-        QPlainTextEdit.keyPressEvent(self, event)
+
+        text_cursor = self.textCursor()
+        process_event = True
+        if event.key() == Qt.Key_Tab:
+            text_cursor.insertText(" " * self.tab_spaces)
+            process_event = False          
+
+        if process_event:
+            QPlainTextEdit.keyPressEvent(self, event)
+
+        if event.key() == Qt.Key_Enter or event.key() == Qt.Key_Return:
+            prev_line = self.get_previous_line()
+            prev_line_leading_spaces = len(prev_line) - len(prev_line.lstrip(" "))
+            new_line_spaces = " " * prev_line_leading_spaces
+            if prev_line.startswith(" "):
+                text_cursor.insertText(new_line_spaces)
 
         arrow_pressed = event.key() in (Qt.Key_Right, Qt.Key_Left, Qt.Key_Up, Qt.Key_Down, Qt.Key_Shift, Qt.Key_Control)
 

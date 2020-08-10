@@ -7,8 +7,9 @@
     "console_font_size": 10,
     "tab_font_size": 11,
     "button_font_size": 13,
+    "tab_spaces": 4,
     "window_pos": [
-        175,
-        415
+        63,
+        481
     ]
 }

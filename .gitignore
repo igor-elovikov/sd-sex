@@ -143,3 +143,6 @@ dmypy.json
 
 # Local History for Visual Studio Code
 .history/
+
+# settings file
+sex/settings.json
