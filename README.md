@@ -362,13 +362,13 @@ Just make sure that the type of expression result is the similar as expected typ
 
 ## Type Checking
 
-Type checking is similar to SD which means *no implicit conversion*
+Type checking is similar to SD which means __no implicit conversion__
 
 ```python
 x = 1.0 + 2 # Adding float and integer values
 ``` 
 
-The example above won't compile to graph with the error message. You have to resolve this with explicit type conversion according to the result type you want
+The example above won't compile to graph with the error message in console. You have to resolve this with explicit type conversion according to the result type you want
 
 ```python
 x = toint(1.0) + 2 # OK [x] is integer value 3
@@ -427,7 +427,7 @@ Currently plugin automatically import external function from standart package `f
 
 Sometimes when you open the editor you see `function.sbs` opened in your packages. Currently this is the only way to resolve dependencies (load the package). However if your package already have dependency on `function.sbs` it won't happen. So it happens only when working on some graph from scratch.
 
-Also any function graph in your current opened packages imported automatically. So if you have a function graphs in your current packages you can use them everywhere inside these packages
+Also any function graph in your current opened packages imported automatically. So if you have function graphs in your current packages you can use them as functions in your scripts everywhere inside these packages
 
 ![Function Example](https://github.com/igor-elovikov/sd-sex/blob/master/img/import_func.png)
 
@@ -441,7 +441,11 @@ Basically if you need to use some function from other .sbs file just open this f
 
 ## Plugin Settings
 
-In settings.json you can set custom font size for editor. Use it to adjust editor appearance to your DPI
+All the settings stored in settings.json located in plugin directory.
+There you can set the custom font sizes for editor, use it to adjust editor appearance to your DPI
+Also there are additional settings:
+* `"tab_spaces": 4` - Number of spaces for tabs in the editor
+* `"align_max_nodes": 150` - Compiled graph can be aligned to make a more readable structure. However for complex graphs that can be very slow so it triggers only if number of nodes less than `align_max_nodes` setting (set it to zero if you don't need an aligment)
 
 ## Metaprogramming Features
 
