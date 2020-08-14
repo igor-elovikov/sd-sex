@@ -145,7 +145,7 @@ dmypy.json
 .history/
 
 # settings file
-sex/settings.json
+settings.json
 
 # packaging files
 makepackage.py
