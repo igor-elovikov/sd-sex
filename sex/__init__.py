@@ -39,6 +39,7 @@ class PluginSettings:
     "tab_font_size": 11,
     "button_font_size": 13,
     "tab_spaces": 4,
+    "align_max_nodes": 150,
     "window_pos": [
         233,
         229
@@ -241,6 +242,9 @@ class MainWindow(QMainWindow):
 
             self.console_message("Create nodes...")
             self.parse_expression_tree(ast_tree)
+            if parser.nodes_num <= self.plugin_settings["align_max_nodes"]:
+                self.console_message("Align nodes...")
+                parser.align_nodes()
 
 
 class SexToolBar(QToolBar):

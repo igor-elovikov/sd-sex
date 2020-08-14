@@ -149,6 +149,32 @@ sd_integer_vector_types = {
 class ParserError(Exception):
     pass
 
+def check_operator_types(op):
+    def wrapper(parser, operator) -> sd.api.SDNode:
+        node: sd.api.SDNode = op(parser, operator)
+        node_definition = node.getDefinition().getId() if node else ""
+
+        # can't check swizzling (something wrong with connection types)
+        is_swizzling_node = "sbs::function::swizzle" in node_definition or "sbs::function::iswizzle" in node_definition
+        if node and not is_swizzling_node:
+            node_inputs = node.getProperties(sd.api.sdproperty.SDPropertyCategory.Input)
+
+            n_input: sd.api.SDProperty
+            for input_index, n_input in enumerate(node_inputs):
+
+                if n_input.isConnectable():
+                    input_connections = node.getPropertyConnections(n_input)
+                    if len(input_connections):
+                        prop_connection: sd.api.SDConnection = input_connections[0]
+                        in_type = prop_connection.getInputProperty().getType().getId()
+                        out_type = prop_connection.getOutputProperty().getType().getId()
+                        if in_type != out_type:
+                            parser._error(f"Type mismatch for parameter [{input_index + 1}]: {out_type} was expected ({in_type} was received)", operator)
+        return node
+
+    return wrapper   
+
+
 class NodeCreator:
     def __init__(self, graph: sd.api.SDGraph=None):
         self.var_scope = {}
@@ -173,10 +199,13 @@ class NodeCreator:
         self.keywords.append("True")
         self.keywords.append("False")
         self.main_window = None
+        self.nodes_num = 0
+        self.align_queue = []
 
     def _reset(self):
         self.node_pos_x = 0
         self.node_pos_y = 0
+        self.nodes_num = 0
         self.var_scope = {}
         self.export_vars = []
 
@@ -290,7 +319,72 @@ class NodeCreator:
     def create_graph_node(self, graph_node_definition: str) -> sd.api.SDNode:
         graph_node = self.graph.newNode(graph_node_definition)
         self.set_new_node_position(graph_node)
+        self.nodes_num += 1
         return graph_node
+
+    def add_node_to_aligh_queue(self, node: sd.api.SDNode, queue_index: int):
+
+        node_id = node.getIdentifier()
+        for i in range(len(self.align_queue)):
+            n: sd.api.SDNode
+            self.align_queue[i] = [n for n in self.align_queue[i] if n.getIdentifier() != node_id]
+
+        if queue_index == len(self.align_queue):
+            node_queue = []
+            self.align_queue.append(node_queue)
+        else:
+            node_queue = self.align_queue[queue_index]
+
+        node_queue.append(node)
+        node_inputs = node.getProperties(sd.api.sdproperty.SDPropertyCategory.Input)
+        pr: sd.api.SDProperty
+        for pr in node_inputs:
+            if pr.isConnectable():
+                pr_connections = node.getPropertyConnections(pr)
+                if len(pr_connections):
+                    node_connection: sd.api.SDConnection = pr_connections[0]
+                    input_node: sd.api.SDNode = node_connection.getInputPropertyNode()
+                    self.add_node_to_aligh_queue(input_node, queue_index + 1)
+
+
+    def align_nodes(self):
+        nodes = self.graph.getNodes()
+        self.align_queue.clear()
+
+        node: sd.api.SDNode
+        output_nodes = self.graph.getOutputNodes()
+        output_node_id = ""
+        if len(output_nodes):
+            output_node: sd.api.SDNode = output_nodes[0]
+            output_node_id = output_node.getIdentifier()
+        
+        for node in nodes:
+            out_property: sd.api.SDProperty = node.getPropertyFromId(output_id, sd.api.sdproperty.SDPropertyCategory.Output)
+            is_output_connected = False
+            if out_property:
+                out_connections = node.getPropertyConnections(out_property)
+                if len(out_connections):
+                    is_output_connected = True
+
+            is_output_node = node.getIdentifier() == output_node_id
+            if (not isinstance(node, sd.api.SDGraphObject) and not is_output_connected) or is_output_node:
+                self.add_node_to_aligh_queue(node, 0)
+
+        self.align_queue = [l for l in self.align_queue if len(l)]
+
+        max_rows = len(max(self.align_queue, key = lambda l: len(l)))
+        grid_size_h = grid_size * 1.3
+
+        graph_height = max_rows * grid_size
+        graph_width = len(self.align_queue) * grid_size_h
+
+        for col_index, col_nodes in enumerate(self.align_queue):
+            col_x = graph_width - (col_index + 1) * grid_size_h
+            col_y = graph_height / 2.0  - len(col_nodes) / 2.0 * grid_size
+
+            for row_index, node in enumerate(col_nodes):
+                node.setPosition(float2(col_x, col_y + row_index * grid_size))
+
 
     def create_graph_node_from_resource(self, resource: sd.api.SDResource) -> sd.api.SDNode:
         graph_node = self.graph.newInstanceNode(resource)
@@ -504,6 +598,7 @@ class NodeCreator:
 
         return node
 
+    @check_operator_types
     def parse_operator(self, operator) -> sd.api.SDNode:
         if isinstance(operator, ast.BinOp):
             return self.parse_binary_operator(operator)
@@ -634,20 +729,6 @@ class NodeCreator:
 
         for expr in expressions:
             expr_node = self.parse_operator(expr.value)
-            if expr_node:
-                node_inputs = expr_node.getProperties(sd.api.sdproperty.SDPropertyCategory.Input)
-
-                n_input: sd.api.SDProperty
-                for input_index, n_input in enumerate(node_inputs):
-                    if n_input.isConnectable():
-                        input_connections = expr_node.getPropertyConnections(n_input)
-                        if len(input_connections):
-                            prop_connection: sd.api.SDConnection = input_connections[0]
-                            in_type = prop_connection.getInputProperty().getType().getId()
-                            out_type = prop_connection.getOutputProperty().getType().getId()
-
-                            if in_type != out_type:
-                                self._error(f"Type mismatch for parameter [{input_index + 1}]: {out_type} was expected ({in_type} was received)", expr)
 
             if isinstance(expr, ast.Assign):
                 assign_operator: ast.Assign = expr
