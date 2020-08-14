@@ -39,7 +39,7 @@ class PluginSettings:
     "tab_font_size": 11,
     "button_font_size": 13,
     "tab_spaces": 4,
-    "align_max_nodes": 150,
+    "align_max_nodes": 50,
     "window_pos": [
         233,
         229
@@ -126,9 +126,8 @@ class MainWindow(QMainWindow):
         pos_y = plugin_settings["window_pos"][1]
         #self.setGeometry(pos_x, pos_y, width, height)
         self.move(pos_x, pos_y)
-        self.width = width
-        self.height = height 
-
+        self.resize(width, height)
+        
        
 
         builtin_functions = ([*sexparser.function_node_map]
@@ -163,7 +162,8 @@ class MainWindow(QMainWindow):
         return list(result)
 
     def closeEvent(self, event):
-        self.plugin_settings["window_size"] = [self.width, self.height]
+        self.plugin_settings["window_size"] = [self.width(), self.height()]
+        print(self.plugin_settings["window_size"])
         self.plugin_settings["window_pos"] = [self.pos().x(), self.pos().y()]
         self.plugin_settings.save()
 
