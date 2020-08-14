@@ -2,8 +2,6 @@
 
 Substance Designer Plugin for creating function graphs from code. Includes simple editor and code generating features
 
-__Public Beta version. It's working but some breaking changes can be introduced__
-
 ## Installation
 Just manually add plugin path to search paths in SD Preferences:
 https://docs.substance3d.com/sddoc/plugin-search-paths-172825000.html (You need to add path to the root where README.md is located)
@@ -13,6 +11,8 @@ After that you shoud see this toolbar with any function graph opened
 ![Toolbar](https://github.com/igor-elovikov/sd-sex/blob/master/img/toolbar.png)
 
 _(on MacOS created toolbars aren't active by default so you would need to click on IE icon first to see Expression button)_
+
+Alternatively you can install plugin from release page.
 
 ## Usage
 
@@ -362,17 +362,13 @@ Just make sure that the type of expression result is the similar as expected typ
 
 ## Type Checking
 
-This is something that I'm working on. Currently there are no type checks so something like this compiles
+Type checking is similar to SD which means __no implicit conversion__
 
 ```python
 x = 1.0 + 2 # Adding float and integer values
 ``` 
 
-The graph would be created without any errors but it will be broken because SD don't do any implicit conversion. 
-
-![Broken Graph](https://github.com/igor-elovikov/sd-sex/blob/master/img/broken_graph.png)
-
-That means you have to be very careful with types and always check if you have any red lines int the result graph. For the example above you should fix it with explicit type conversion according to the result type you want
+The example above won't compile to graph with the error message in console. You have to resolve this with explicit type conversion according to the result type you want
 
 ```python
 x = toint(1.0) + 2 # OK [x] is integer value 3
@@ -427,24 +423,29 @@ x = 2.0 if trigger else 0.0
 
 ## Importing External Functions
 
-Currently plugin doesn't support import external function besides standart package `function.sbs` which included in SD. All functions from `function.sbs` imported automatically. See (https://github.com/igor-elovikov/sd-sex/blob/master/func_list.md) for all the aliases.
+Currently plugin automatically import external function from standart package `function.sbs` which included in SD. All functions from `function.sbs` are available straight away. See (https://github.com/igor-elovikov/sd-sex/blob/master/func_list.md) for all the aliases.
 
-Sometimes when you open the editor you see `function.sbs` opened in your packages. Currently this is the only way to resolve dependencies (load the package). However if your package already have dependency on `function.sbs` it won't happen. So basically it happens only when working on some graph from scratch.
+Sometimes when you open the editor you see `function.sbs` opened in your packages. Currently this is the only way to resolve dependencies (load the package). However if your package already have dependency on `function.sbs` it won't happen. So it happens only when working on some graph from scratch.
 
-_(custom libraries will be supported in release version)_
-
-Also any function graph in your current package imported automatically. So if you have a function graph `My_Function` in your package you can use it everywhere inside this package
+Also any function graph in your current opened packages imported automatically. So if you have function graphs in your current packages you can use them as functions in your scripts everywhere inside these packages
 
 ![Function Example](https://github.com/igor-elovikov/sd-sex/blob/master/img/import_func.png)
 
 ```python
 x = My_Function() # Use function graph id as function name 
-_OUT_ = x + 2.0
+y = Other_Function(x, 2.0) # You can use functions from different packages
+_OUT_ = y + 2.0
 ```
+
+Basically if you need to use some function from other .sbs file just open this file so it's listed in your explorer window. All dependencies will be resolved by SD automatically when you save your package. 
 
 ## Plugin Settings
 
-In settings.json you can set custom font size for editor. Use it to adjust editor appearance to your DPI
+All the settings stored in settings.json located in plugin directory.
+There you can set the custom font sizes for editor, use it to adjust editor appearance to your DPI
+Also there are additional settings:
+* `"tab_spaces": 4` - Number of spaces for tabs in the editor
+* `"align_max_nodes": 150` - Compiled graph can be aligned to make a more readable structure. However for complex graphs that can be very slow so it triggers only if number of nodes less than `align_max_nodes` setting (set it to zero if you don't need an aligment)
 
 ## Metaprogramming Features
 
