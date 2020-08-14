@@ -244,6 +244,7 @@ class MainWindow(QMainWindow):
             if parser.nodes_num <= self.plugin_settings["align_max_nodes"]:
                 self.console_message("Align nodes...")
                 parser.align_nodes()
+            self.console_message("DONE")
 
 
 class SexToolBar(QToolBar):
