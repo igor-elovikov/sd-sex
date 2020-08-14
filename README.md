@@ -12,7 +12,7 @@ After that you shoud see this toolbar with any function graph opened
 
 _(on MacOS created toolbars aren't active by default so you would need to click on IE icon first to see Expression button)_
 
-Alternatively you can install plugin from [release page](https://github.com/igor-elovikov/sd-sex/releases). Just download sex.sdplugin from assets and install it through Plugin Manager in Substance Designer. _Tools -> Plugin Manager_ then hit the button _INSTALL_ and browse the downloaded file.
+Alternatively you can install plugin from [release page](https://github.com/igor-elovikov/sd-sex/releases). Just download __sex.sdplugin__ from assets and install it through Plugin Manager in Substance Designer. _Tools -> Plugin Manager_ then hit the button _INSTALL_ and browse the downloaded file.
 
 ## Usage
 
