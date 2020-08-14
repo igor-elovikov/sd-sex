@@ -248,16 +248,18 @@ class NodeCreator:
         return imported_functions
 
     def import_current_graph_functions(self, sd_app: sd.api.SDApplication):
-        ui_mgr = sd_app.getUIMgr()
-        current_package = ui_mgr.getCurrentGraph().getPackage()
+        pkg_mgr = sd_app.getPackageMgr()
 
         self.keywords = [key for key in self.keywords if key not in self.current_graph_functions]
+
+        user_packages = pkg_mgr.getUserPackages()
         self.current_graph_functions = []
 
-        package_functions = self.get_package_functions(current_package)
-        self.current_graph_functions = [*package_functions]
-        self.imported_functions.update(package_functions)
-        
+        package: sd.api.SDPackage
+        for package in user_packages:
+            package_functions = self.get_package_functions(package)
+            self.current_graph_functions.extend([*package_functions])
+            self.imported_functions.update(package_functions)
 
     def import_functions(self, package_name: str, sd_app: sd.api.SDApplication):
         package_mgr = sd_app.getPackageMgr()
