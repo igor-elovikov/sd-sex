@@ -12,7 +12,7 @@ After that you shoud see this toolbar with any function graph opened
 
 _(on MacOS created toolbars aren't active by default so you would need to click on IE icon first to see Expression button)_
 
-Alternatively you can install plugin from release page.
+Alternatively you can install plugin from [release page](https://github.com/igor-elovikov/sd-sex/releases). Just download __sex.sdplugin__ from assets and install it through Plugin Manager in Substance Designer. _Tools -> Plugin Manager_ then hit the button _INSTALL_ and browse the downloaded file.
 
 ## Usage
 
@@ -472,7 +472,7 @@ These are most common practices for writing expressions. Though you can use any 
 Loops can be used to emulate arrays
 ```python
 :: for i in range(5)
-x{{ i }} = {{ i | float }}
+    x{{ i }} = {{ i | float }}
 :: endfor
 
 # ---- RESULT ---- #
@@ -495,10 +495,10 @@ pos = get_float2("$pos")
 total_lum = 0.0
 
 :: for x in range(-1, 2)
-:: for y in range(-1, 2)
-offset = vector2({{ x | float }}, {{ y | float }})
-total_lum = total_lum + samplelum(pos + offset / size, 0, 0)
-:: endfor
+    :: for y in range(-1, 2)
+        offset = vector2({{ x | float }}, {{ y | float }})
+        total_lum = total_lum + samplelum(pos + offset / size, 0, 0)
+    :: endfor
 :: endfor
 
 _OUT_ = total_lum / 9.0
@@ -548,10 +548,10 @@ pos = get_float2("$pos")
 total_lum = 0.0
 
 :: for x in range(-1, 2)
-:: for y in range(-1, 2)
-offset = vector2({{ x | float }}, {{ y | float }})
-total_lum = total_lum + samplelum(pos + offset / size, 0, 0) * {{ kernel[x + 1][y + 1] }}
-:: endfor
+    :: for y in range(-1, 2)
+        offset = vector2({{ x | float }}, {{ y | float }})
+        total_lum = total_lum + samplelum(pos + offset / size, 0, 0) * {{ kernel[x + 1][y + 1] }}
+    :: endfor
 :: endfor
 
 _OUT_ = total_lum 
@@ -667,9 +667,9 @@ Use If-Else blocks for compile-time branching. One of the examples is creating a
 For example we can create a file `color_or_grayscale.sex` with this code
 ```python
 :: if color
-_OUT_ = uniform_f4_ab(float4(0.0, 0.0, 0.0, 0.0), float4(1.0, 1.0, 1.0, 1.0))
+    _OUT_ = uniform_f4_ab(float4(0.0, 0.0, 0.0, 0.0), float4(1.0, 1.0, 1.0, 1.0))
 :: else
-_OUT_ = uniform_ab(0.0, 1.0)
+    _OUT_ = uniform_ab(0.0, 1.0)
 :: endif
 ```
 
