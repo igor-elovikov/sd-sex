@@ -514,14 +514,24 @@ class NodeCreator:
         if type(operator.op) in bool_operator_map:
             node = self.create_graph_node(bool_operator_map[type(operator.op)])
             operands = operator.values
-            if len(operands) != 2:
-                self._error("Non binary boolean operators are not supported", operator)
 
             left_node = self.parse_operator(operands[0])
             right_node = self.parse_operator(operands[1])
 
             left_node.newPropertyConnectionFromId(output_id, node, "a")
             right_node.newPropertyConnectionFromId(output_id, node, "b")
+
+            if len(operands) > 2:
+                prev_node = node
+
+                for opi in range(2, len(operands)):
+                    operand_node = self.parse_operator(operands[opi])
+                    node = self.create_graph_node(bool_operator_map[type(operator.op)])
+
+                    prev_node.newPropertyConnectionFromId(output_id, node, "a")
+                    operand_node.newPropertyConnectionFromId(output_id, node, "b")
+                                        
+                    prev_node = node
 
             return node
 
