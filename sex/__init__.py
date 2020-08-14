@@ -163,7 +163,6 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event):
         self.plugin_settings["window_size"] = [self.width(), self.height()]
-        print(self.plugin_settings["window_size"])
         self.plugin_settings["window_pos"] = [self.pos().x(), self.pos().y()]
         self.plugin_settings.save()
 
