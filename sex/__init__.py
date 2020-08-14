@@ -47,7 +47,7 @@ class PluginSettings:
 }        
         """
         path = os.path.dirname(os.path.abspath(__file__))
-        self.settings_file_path = os.path.join(path, "settings.json")
+        self.settings_file_path = os.path.join(path, "..", "settings.json")
         self.settings = {}
         self.defaults = json.loads(self._json_defaults)
         self.load()
