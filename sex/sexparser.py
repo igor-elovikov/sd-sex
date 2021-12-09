@@ -990,7 +990,7 @@ class NodeCreator:
 
             operator_node = self.create_graph_node(binary_operator_map[type(operator.op)])
 
-            left_node = self.get_variable_node(operator.target.id)
+            left_node = self.get_variable_node(operator.target.id, operator)
             right_node = self.parse_operator(operator.value)
             
             left_node.newPropertyConnectionFromId(output_id, operator_node, "a")
@@ -1114,7 +1114,7 @@ class NodeCreator:
 
         return node
 
-    def get_variable_node(self, variable_name: str) -> sd.api.SDNode:
+    def get_variable_node(self, variable_name: str, operator: ast.expr) -> sd.api.SDNode:
             if variable_name in self.var_scope:
                 return self.var_scope[variable_name]
             else:
@@ -1167,7 +1167,7 @@ class NodeCreator:
         if isinstance(operator, ast.Name):
             operator: ast.Name
             variable_name = operator.id
-            return self.get_variable_node(variable_name)
+            return self.get_variable_node(variable_name, operator)
 
         if isinstance(operator, ast.AugAssign):
             return self.parse_augassign(operator)
