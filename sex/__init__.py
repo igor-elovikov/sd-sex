@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 import sys
 import ast
@@ -11,12 +13,15 @@ from PySide2.QtWidgets import QApplication, QMainWindow, QToolBar
 
 sys.path.append(os.path.dirname(__file__))
 
-import codeeditor
 import sd
+import sd.api
 import sexeditor
 import sexparser
 import sexsyntax
 import jinja2
+
+from sd.api.sdproperty import SDPropertyCategory
+from astutils import SexAstTransfomer
 
 ctx = sd.getContext()
 app = ctx.getSDApplication()
@@ -24,6 +29,17 @@ ui_mgr = app.getUIMgr()
 qt_mgr = app.getQtForPythonUIMgr()
 
 parser = sexparser.NodeCreator()
+
+sd_type_map = {
+    "float": sd.api.SDTypeFloat.sNew(),
+    "float2": sd.api.SDTypeFloat2.sNew(),
+    "float3": sd.api.SDTypeFloat3.sNew(),
+    "float4": sd.api.SDTypeFloat4.sNew(),
+    "int": sd.api.SDTypeInt.sNew(),
+    "int2": sd.api.SDTypeInt2.sNew(),
+    "int3": sd.api.SDTypeInt3.sNew(),
+    "int4": sd.api.SDTypeInt4.sNew(),
+}
 
 class PluginSettings:
     def __init__(self):
@@ -82,7 +98,7 @@ class MainWindow(QMainWindow):
         super(MainWindow, self).__init__(parent)
         plugin_settings = PluginSettings()
         self.plugin_settings = plugin_settings
-        self.graph = graph
+        self.graph: sd.api.SDGraph = graph
         self.ui = sexeditor.Ui_MainWindow()
         self.ui.setupUi(self)
         self.ui.code_editor.setup_editor(plugin_settings["editor_font_size"])
@@ -166,6 +182,25 @@ class MainWindow(QMainWindow):
         self.plugin_settings["window_pos"] = [self.pos().x(), self.pos().y()]
         self.plugin_settings.save()
 
+    def indent_fix(self, src: str) -> str:
+        lines = src.splitlines()
+        indent = " " * self.ui.code_editor.tab_spaces
+        current_ident = ""
+        for index, line in enumerate(lines):
+            if current_ident and line and not line.startswith(" "):
+                current_ident = ""
+
+            line = current_ident + line.lstrip()
+            lines[index] = line
+            
+            if line.lstrip().startswith("def "):
+                current_ident = indent
+                continue
+
+
+        return "\n".join(lines)
+
+
     def tab_change(self, tab_index):
         if tab_index == 1:
             src = self.ui.code_editor.toPlainText()
@@ -175,7 +210,7 @@ class MainWindow(QMainWindow):
                 self.console_message(str(e))
                 return
             
-            stripped_src = "\n".join([line.lstrip() for line in src.splitlines()])
+            stripped_src = self.indent_fix(src)
             self.ui.render_view.setPlainText(stripped_src)
 
 
@@ -207,7 +242,7 @@ class MainWindow(QMainWindow):
         parser.graph = self.graph
         parser.main_window = self
         try:
-            parser.parse_module(ast_tree)
+            parser.parse_tree(ast_tree)
         except sexparser.ParserError as err:
             self.console_message(str(err))
         except Exception as err:
@@ -216,6 +251,9 @@ class MainWindow(QMainWindow):
             self.console_message(traceback.format_exc())
         else:
             self.console_message("Nodes are succesfully created")
+
+    def get_package_resource(self, resources: list[sd.api.SDResource], res_id: str) -> sd.api.SDResource:
+        return next((res for res in resources if res.getIdentifier() == res_id), None)
 
     def create_nodes(self):
         self.console_message("Compiling...")
@@ -228,8 +266,9 @@ class MainWindow(QMainWindow):
             self.console_message(str(e))
             return
         try:
-            stripped_src = "\n".join([line.lstrip() for line in src.splitlines()])
+            stripped_src = self.indent_fix(src)
             ast_tree = ast.parse(stripped_src, mode="exec")
+            tree: ast.AST = SexAstTransfomer().visit(ast_tree)
         except SyntaxError as err:
             self.console_message(str(err))
             self.console_message(err.text)
@@ -240,11 +279,42 @@ class MainWindow(QMainWindow):
                 self.graph.deleteNode(graph_nodes.getItem(i))
 
             self.console_message("Create nodes...")
-            self.parse_expression_tree(ast_tree)
+            self.parse_expression_tree(tree)
             if parser.nodes_num <= self.plugin_settings["align_max_nodes"]:
                 self.console_message("Align nodes...")
                 parser.align_nodes()
             self.console_message("DONE")
+
+            current_package: sd.api.SDPackage = self.graph.getPackage()
+            resources: list[sd.api.SDResource] = current_package.getChildrenResources(True)
+
+            for node in ast.walk(tree):
+
+                if not isinstance(node, ast.FunctionDef):
+                    continue
+
+                function_name = node.name
+
+                function_resource = self.get_package_resource(resources, function_name)
+                if function_resource is not None:
+                    function_resource.delete()
+
+                inputs = {}
+                arg: ast.arg
+                for arg in node.args.args:
+                    input_name = f"__{function_name}_arg_{arg.arg}"
+                    inputs[input_name] = (arg.arg, arg.annotation.id)
+
+                function_graph: sd.api.SDSBSFunctionGraph = sd.api.SDSBSFunctionGraph.sNew(current_package)
+                function_graph.setIdentifier(function_name)
+
+                for inp in inputs:
+                    var_name, var_type = inputs[inp]
+                    prop: sd.api.SDProperty = function_graph.newProperty(inp, sd_type_map[var_type], SDPropertyCategory.Input)
+                    function_graph.setPropertyAnnotationValueFromId(prop, "label", sd.api.SDValueString.sNew(var_name))
+
+                parser.graph = function_graph
+                parser.parse_tree(node, inputs)
 
 
 class SexToolBar(QToolBar):

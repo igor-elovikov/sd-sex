@@ -9,8 +9,6 @@ import sd.api
 from sd.api.sdbasetypes import float2
 from sd.api.sdproperty import SDPropertyCategory
 
-from astutils import SexAstTransfomer
-
 grid_size = 1.4 * sd.ui.graphgrid.GraphGrid.sGetFirstLevelSize()
 max_nodes_in_row = 20
 
@@ -570,6 +568,7 @@ class NodeCreator:
         self.nodes_num = 0
         self.var_scope = {}
         self.export_vars = []
+        self.inputs_vars = []
 
     def _error(self, message: str, operator: ast.Expr):
         raise ParserError(f"[line {operator.lineno}: col {operator.col_offset}] ERROR: {message}")
@@ -1244,13 +1243,23 @@ class NodeCreator:
 
 
     
-    def parse_module(self, expr_tree: ast.Module):
+    def parse_tree(self, expr_tree: ast.AST, inputs: dict = None):
         self._reset()
 
-        tree: ast.AST = SexAstTransfomer().visit(expr_tree)
-        expressions = tree.body
+        expressions = expr_tree.body
+
+        if inputs is not None and inputs:
+            for inp in inputs:
+                var_name, var_type = inputs[inp]
+                input_node_definition = get_variable_map[f"get_{var_type}"]
+                input_node = self.create_graph_node(input_node_definition)
+                input_node.setInputPropertyValueFromId("__constant__", sd.api.SDValueString.sNew(inp))
+                self.var_scope[var_name] = input_node
 
         for expr in expressions:
+            if isinstance(expr, ast.FunctionDef):
+                continue
+
             if not isinstance(expr, ast.AugAssign):
                 expr_node = self.parse_operator(expr.value)
             else:

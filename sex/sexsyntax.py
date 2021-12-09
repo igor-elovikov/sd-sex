@@ -54,7 +54,7 @@ class SexHighlighter(QSyntaxHighlighter):
     # Python keywords
     keywords = [
         'if', 'else', 'not', 'and', 'or', sexparser.export_function_name, sexparser.declare_inputs_function_name, 'for', 'in', 'endfor', 'endif', 'macro', 'endmacro', '::', '{{', '}}',
-        'include', 'import', 'set', 'as', 'extend', 'return'
+        'include', 'import', 'set', 'as', 'extend', 'return', 'def'
     ]
 
     builtin_constant = [
