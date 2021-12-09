@@ -17,6 +17,9 @@ output_variable_name = "_OUT_"
 export_function_name = "export"
 declare_inputs_function_name = "declare_inputs"
 
+PIXEL_PROCESSOR_DECORATOR = "pixel_processor"
+VALUE_PROCESSOR_DECORATOR = "value_processor"
+
 binary_operator_map = {
     ast.Add: "sbs::function::add",
     ast.Sub: "sbs::function::sub",
@@ -1092,6 +1095,7 @@ class NodeCreator:
             self._error(f"{function_name}() takes {len(input_names)} arguments ({len(operator.args)} given)", operator)
 
         for arg, input_name in zip(operator.args, input_names):
+            print(input_name)
             input_node = self.parse_operator(arg)
             input_node.newPropertyConnectionFromId(output_id, node, input_name)
 

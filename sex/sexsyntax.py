@@ -3,6 +3,7 @@ import sys
 from PySide2.QtCore import QRegExp
 from PySide2.QtGui import QColor, QFont, QSyntaxHighlighter, QTextCharFormat
 from PySide2.QtWidgets import QApplication, QPlainTextEdit
+import sex
 
 import sexparser
 

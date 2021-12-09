@@ -11,6 +11,8 @@ from time import gmtime, strftime
 from PySide2.QtGui import QFont, QIcon
 from PySide2.QtWidgets import QApplication, QMainWindow, QToolBar
 
+from sex.sexparser import PIXEL_PROCESSOR_DECORATOR, VALUE_PROCESSOR_DECORATOR
+
 sys.path.append(os.path.dirname(__file__))
 
 import sd
@@ -20,8 +22,10 @@ import sexparser
 import sexsyntax
 import jinja2
 
-from sd.api.sdproperty import SDPropertyCategory
+from sd.api.sdproperty import SDProperty, SDPropertyCategory
 from astutils import SexAstTransfomer
+
+import sdutils as sdu
 
 ctx = sd.getContext()
 app = ctx.getSDApplication()
@@ -91,6 +95,36 @@ class PluginSettings:
         with open(self.settings_file_path, "w") as settings_file:
             json.dump(settings_to_save, settings_file, indent=4)
     
+class FunctionDecorator:
+    def __init__(self) -> None:
+        self.args: dict = {}
+
+def parse_decorators(decorator_list: list[ast.AST]) -> dict[str, FunctionDecorator]:
+    result: dict[str, FunctionDecorator] = {}    
+
+    for decorator in decorator_list:
+
+        if isinstance(decorator, ast.Name):
+            result[decorator.id] = FunctionDecorator()
+            continue
+
+        if isinstance(decorator, ast.Call):
+            d = FunctionDecorator()
+            keyword: ast.keyword
+            for keyword in decorator.keywords:
+                key = keyword.arg
+                d.args[key] = None
+
+                if isinstance(keyword.value, ast.Num):
+                    d.args[key] = keyword.value.n
+
+                if isinstance(keyword.value, ast.Str):
+                    d.args[key] = keyword.value.s
+            
+            result[decorator.func.id] = d
+            continue
+
+    return result
 
 class MainWindow(QMainWindow):
 
@@ -152,7 +186,8 @@ class MainWindow(QMainWindow):
                              + [*sexparser.samplers_map]
                              + ["range"])
 
-        builtin_types = [*sexparser.constants_map] + [*sexparser.get_variable_map] + [*sexparser.casts_map]
+        builtin_types = ([*sexparser.constants_map] + [*sexparser.get_variable_map] 
+            + [*sexparser.casts_map] + [PIXEL_PROCESSOR_DECORATOR, VALUE_PROCESSOR_DECORATOR])
 
         self.highlighter.setup_rules(builtin_functions, builtin_types)
         self.view_highlighter.setup_rules(builtin_functions, builtin_types)
@@ -238,11 +273,9 @@ class MainWindow(QMainWindow):
         src = self.ui.code_editor.toPlainText()
         self.frame_object.setDescription(src)
 
-    def parse_expression_tree(self, ast_tree):
-        parser.graph = self.graph
-        parser.main_window = self
+    def parse_expression_tree(self, ast_tree, inputs: dict = None):
         try:
-            parser.parse_tree(ast_tree)
+            parser.parse_tree(ast_tree, inputs)
         except sexparser.ParserError as err:
             self.console_message(str(err))
         except Exception as err:
@@ -255,10 +288,18 @@ class MainWindow(QMainWindow):
     def get_package_resource(self, resources: list[sd.api.SDResource], res_id: str) -> sd.api.SDResource:
         return next((res for res in resources if res.getIdentifier() == res_id), None)
 
+    def get_package_compgraph(self, resources: list[sd.api.SDResource], res_id: str) -> sd.api.SDSBSCompGraph:
+        return next((res for res in resources if res.getIdentifier() == res_id and res.getType().getId() == sdu.comp_graph_class), None)
+
+    def get_package_functiongraph(self, resources: list[sd.api.SDResource], res_id: str) -> sd.api.SDSBSFunctionGraph:
+        return next((res for res in resources if res.getIdentifier() == res_id and res.getType().getId() == sdu.function_graph_class), None)
+
     def create_nodes(self):
         self.console_message("Compiling...")
         src = self.ui.code_editor.toPlainText()
         self.frame_object.setDescription(src)
+
+        parser.main_window = self
 
         try:
             src = self.get_rendered_code(src)
@@ -273,7 +314,78 @@ class MainWindow(QMainWindow):
             self.console_message(str(err))
             self.console_message(err.text)
         else:
+            current_package: sd.api.SDPackage = self.graph.getPackage()
+            resources: list[sd.api.SDResource] = current_package.getChildrenResources(True)
+
+            for node in ast.walk(tree):
+
+                if not isinstance(node, ast.FunctionDef):
+                    continue
+
+                print(ast.dump(node))
+
+                function_name = node.name
+
+                
+                function_graph: sd.api.SDSBSFunctionGraph = None
+                inputs_node: sd.api.SDNode = None
+
+                decorators = parse_decorators(node.decorator_list)
+                print(decorators)
+
+                use_node_inputs = False
+
+                if sexparser.PIXEL_PROCESSOR_DECORATOR in decorators:
+                    decorator = decorators[sexparser.PIXEL_PROCESSOR_DECORATOR]
+                    graph = self.get_package_compgraph(resources, decorator.args["graph"])
+                    pp_node = sdu.get_graph_node(graph, uid=decorator.args["uid"])
+                    prop = sdu.get_node_input(pp_node, "perpixel")
+                    function_graph = pp_node.newPropertyGraph(prop, sdu.function_graph_class)
+                    inputs_node = pp_node
+                    use_node_inputs = True
+
+                if function_graph is None:
+                    function_resource = self.get_package_functiongraph(resources, function_name)
+                    function_graph = function_resource
+                    if function_graph is None:
+                        function_graph: sd.api.SDSBSFunctionGraph = sd.api.SDSBSFunctionGraph.sNew(current_package)
+                        function_graph.setIdentifier(function_name)
+
+                    inputs_node = function_graph
+                    function_inputs = function_graph.getProperties(SDPropertyCategory.Input)
+
+                    for finp in function_inputs:
+                        function_graph.deleteProperty(finp)
+
+                    for graph_node in function_graph.getNodes():
+                        function_graph.deleteNode(graph_node)
+
+
+                inputs = {}
+                arg: ast.arg
+                for arg in node.args.args:
+                    input_name = f"__{function_name}_arg_{arg.arg}" if not use_node_inputs else f"#{arg.arg}"
+                    inputs[input_name] = (arg.arg, arg.annotation.id)
+
+
+                for inp in inputs:
+                    if use_node_inputs:
+                        node_inputs = inputs_node.getProperties(SDPropertyCategory.Input)
+                        for ni in node_inputs:
+                            if ni.getId().startswith("#"):
+                                inputs_node.deleteProperty(ni)
+                    var_name, var_type = inputs[inp]
+                    prop: sd.api.SDProperty = inputs_node.newProperty(inp, sd_type_map[var_type], SDPropertyCategory.Input)
+                    if not use_node_inputs:
+                        inputs_node.setPropertyAnnotationValueFromId(prop, "label", sd.api.SDValueString.sNew(var_name))
+
+                parser.graph = function_graph
+                self.parse_expression_tree(node, inputs)
+
+            parser.import_current_graph_functions(app)
+
             self.console_message("Delete current nodes...")
+            parser.graph = self.graph
             graph_nodes = self.graph.getNodes()
             for i in range(graph_nodes.getSize()):
                 self.graph.deleteNode(graph_nodes.getItem(i))
@@ -285,36 +397,6 @@ class MainWindow(QMainWindow):
                 parser.align_nodes()
             self.console_message("DONE")
 
-            current_package: sd.api.SDPackage = self.graph.getPackage()
-            resources: list[sd.api.SDResource] = current_package.getChildrenResources(True)
-
-            for node in ast.walk(tree):
-
-                if not isinstance(node, ast.FunctionDef):
-                    continue
-
-                function_name = node.name
-
-                function_resource = self.get_package_resource(resources, function_name)
-                if function_resource is not None:
-                    function_resource.delete()
-
-                inputs = {}
-                arg: ast.arg
-                for arg in node.args.args:
-                    input_name = f"__{function_name}_arg_{arg.arg}"
-                    inputs[input_name] = (arg.arg, arg.annotation.id)
-
-                function_graph: sd.api.SDSBSFunctionGraph = sd.api.SDSBSFunctionGraph.sNew(current_package)
-                function_graph.setIdentifier(function_name)
-
-                for inp in inputs:
-                    var_name, var_type = inputs[inp]
-                    prop: sd.api.SDProperty = function_graph.newProperty(inp, sd_type_map[var_type], SDPropertyCategory.Input)
-                    function_graph.setPropertyAnnotationValueFromId(prop, "label", sd.api.SDValueString.sNew(var_name))
-
-                parser.graph = function_graph
-                parser.parse_tree(node, inputs)
 
 
 class SexToolBar(QToolBar):
