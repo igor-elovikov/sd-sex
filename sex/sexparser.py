@@ -9,6 +9,8 @@ import sd.api
 from sd.api.sdbasetypes import float2
 from sd.api.sdproperty import SDPropertyCategory
 
+from astutils import SexAstTransfomer
+
 grid_size = 1.4 * sd.ui.graphgrid.GraphGrid.sGetFirstLevelSize()
 max_nodes_in_row = 20
 
@@ -1092,7 +1094,8 @@ class NodeCreator:
     def parse_module(self, expr_tree: ast.Module):
         self._reset()
 
-        expressions = expr_tree.body
+        tree: ast.AST = SexAstTransfomer().visit(expr_tree)
+        expressions = tree.body
 
         for expr in expressions:
             expr_node = self.parse_operator(expr.value)
