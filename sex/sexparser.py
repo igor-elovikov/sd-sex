@@ -1097,6 +1097,7 @@ class NodeCreator:
         for expr in expressions:
             expr_node = self.parse_operator(expr.value)
 
+            # Assignment
             if isinstance(expr, ast.Assign):
                 assign_operator: ast.Assign = expr
                 variable_name = assign_operator.targets[0].id
@@ -1107,6 +1108,7 @@ class NodeCreator:
                 if variable_name == output_variable_name:
                     self.graph.setOutputNode(self.var_scope[variable_name], True)
 
+            # Annotated Assignment
             if isinstance(expr, ast.AnnAssign):
                 op: ast.AnnAssign = expr
                 variable_name = op.target.id
@@ -1131,6 +1133,10 @@ class NodeCreator:
 
                 else:
                     self._error(f"Can't cast {expr_type} to {variable_type} for variable [{variable_name}] assigment", op)
+
+            # Return statemetn
+            if isinstance(expr, ast.Return):
+                self.graph.setOutputNode(expr_node, True)
 
         output_nodes = self.graph.getOutputNodes()
 
