@@ -181,6 +181,9 @@ class Connection:
 class ParserError(Exception):
     pass
 
+def get_node_main_output(node: sd.api.SDNode) -> sd.api.SDProperty:
+    return node.getPropertyFromId(output_id, SDPropertyCategory.Output)
+
 def get_base_type(type_id: str) -> str:
     if type_id.startswith("int"):
         return "int"
@@ -234,6 +237,7 @@ def implicit_conversion(parser: NodeCreator, in_node: sd.api.SDNode, to_type: st
     return None
 
 def implicit_conversion_scalar_to_vector(parser: NodeCreator, in_node: sd.api.SDNode, to_type: str) -> sd.api.SDNode:
+
     in_property = in_node.getPropertyFromId(output_id, SDPropertyCategory.Output)
     in_type = in_property.getType().getId()
 
@@ -358,8 +362,8 @@ def implicit_conversion_vector_to_vector(parser: NodeCreator, in_node: sd.api.SD
         z_node.setInputPropertyValueFromId("__constant__", sd_value_type.sNew(sd_base_type(2)))
 
         if out_components == 2:
-            v_node: sd.api.SDNode = parser.create_graph_node(vector_type_2)
-            xy_node.newPropertyConnectionFromId(in_property.getId(), v_node, "componentsin")
+            v_node: sd.api.SDNode = xy_node
+            
         elif out_components == 4: 
             v_node: sd.api.SDNode = parser.create_graph_node(vector_type_4)
             xy_node.newPropertyConnectionFromId(output_id, v_node, "componentsin")
@@ -383,8 +387,7 @@ def implicit_conversion_vector_to_vector(parser: NodeCreator, in_node: sd.api.SD
         z_node.setInputPropertyValueFromId("__constant__", sd_value_type.sNew(sd_base_type(2)))
 
         if out_components == 2:
-            v_node: sd.api.SDNode = parser.create_graph_node(vector_type_2)
-            xy_node.newPropertyConnectionFromId(in_property.getId(), v_node, "componentsin")
+            v_node: sd.api.SDNode = xy_node
         elif out_components == 3: 
             v_node: sd.api.SDNode = parser.create_graph_node(vector_type_3)
             xy_node.newPropertyConnectionFromId(output_id, v_node, "componentsin")
@@ -474,7 +477,7 @@ def check_operator_types(op):
 
         # can't check swizzling (something wrong with connection types)
         is_swizzling_node = "sbs::function::swizzle" in node_definition or "sbs::function::iswizzle" in node_definition
-        if node and not is_swizzling_node and not isinstance(operator, ast.Name):
+        if node and not is_swizzling_node and not isinstance(operator, ast.Name) and not isinstance(operator, ast.Set):
             node_inputs = node.getProperties(sd.api.sdproperty.SDPropertyCategory.Input)
 
             n_input: sd.api.SDProperty
@@ -750,6 +753,128 @@ class NodeCreator:
         self.set_new_node_position(graph_node)
         return graph_node
 
+    def parse_literal(self, operator: ast.Set) -> sd.api.SDNode:
+
+        def check_components(total_components, operator):
+            if total_components <= 0 or total_components > 4:
+                self._error(f"Number of components in literal has to be in range [1-4]. {total_components} components was given", operator)
+        
+        def append_input(inputs: list[tuple[sd.api.SDProperty, sd.api.SDNode]], node: sd.api.SDNode, input_id: str):
+            inp: sd.api.SDProperty = node.getPropertyFromId(input_id, SDPropertyCategory.Input)
+            inputs.append((inp, node))
+
+        components = operator.elts
+        component_nodes: list[sd.api.SDNode] = []
+        component_types: list[str] = []
+
+        all_consts = all(isinstance(c, ast.Num) for c in components)
+
+        if all_consts:
+            total_components = len(components)
+            check_components(total_components, operator)
+
+            comp_numbers = [c.n for c in components]
+
+            literal_base_type = "float"
+            all_int = all(isinstance(n, int) for n in comp_numbers)
+            if all_int:
+                literal_base_type = "int"
+
+            literal_type = get_type_from_base(literal_base_type, total_components)
+
+            (constant_node_definition, constant_sd_type, constant_sd_value) = constants_map[literal_type]
+            literal_node = self.create_graph_node(constant_node_definition)
+            literal_node.setInputPropertyValueFromId("__constant__", constant_sd_type.sNew(constant_sd_value(*comp_numbers)))
+
+            return literal_node
+
+
+        for comp in components:
+            comp_node = self.parse_operator(comp)
+            component_nodes.append(comp_node)
+            output = get_node_main_output(comp_node)
+            component_types.append(output.getType().getId())
+
+        total_components = sum(get_num_components(t) for t in component_types)
+        check_components(total_components, operator)
+
+
+        literal_base_type = "float"
+        all_int = all(get_base_type(t) == "int" for t in component_types)
+        if all_int:
+            literal_base_type = "int"
+
+        vector_type = "vector" if literal_base_type == "float" else "ivector"
+        swizzle_type = "sbs::function::swizzle1" if literal_base_type == "float" else "sbs::function::iswizzle1"
+
+        vector_type_2 = f"sbs::function::{vector_type}2"
+        vector_type_3 = f"sbs::function::{vector_type}3"
+        vector_type_4 = f"sbs::function::{vector_type}4"
+
+        component_outputs: list[tuple[sd.api.SDProperty, sd.api.SDNode]] = []
+
+        for node, out_type in zip(component_nodes, component_types):
+            out_num_components = get_num_components(out_type)
+
+            if out_num_components == 1:
+                component_outputs.append((get_node_main_output(node), node))
+                continue
+            
+            if out_num_components < 1:
+                continue
+            
+            for i in range(out_num_components):
+                swizzle_node = self.create_graph_node(swizzle_type)
+                node.newPropertyConnectionFromId(output_id, swizzle_node, "vector")
+                swizzle_node.setInputPropertyValueFromId("__constant__", sd.api.SDValueInt.sNew(i))
+                component_outputs.append((get_node_main_output(swizzle_node), swizzle_node))
+
+        if total_components > 1:
+
+            component_inputs: list[tuple[sd.api.SDProperty, sd.api.SDNode]] = []
+
+            if total_components == 2:
+                out_node = self.create_graph_node(vector_type_2)
+                append_input(component_inputs, out_node, "componentsin")
+                append_input(component_inputs, out_node, "componentslast")
+
+            elif total_components == 3:
+
+                out_node = self.create_graph_node(vector_type_3)
+
+                v2_node = self.create_graph_node(vector_type_2)
+                v2_node.newPropertyConnectionFromId(output_id, out_node, "componentsin")
+
+                append_input(component_inputs, v2_node, "componentsin")
+                append_input(component_inputs, v2_node, "componentslast")
+                append_input(component_inputs, out_node, "componentslast")
+
+
+            elif total_components == 4:
+                out_node = self.create_graph_node(vector_type_4)
+
+                v2_node_1 = self.create_graph_node(vector_type_2)
+                v2_node_1.newPropertyConnectionFromId(output_id, out_node, "componentsin")
+                v2_node_2 = self.create_graph_node(vector_type_2)
+                v2_node_2.newPropertyConnectionFromId(output_id, out_node, "componentslast")
+
+                append_input(component_inputs, v2_node_1, "componentsin")
+                append_input(component_inputs, v2_node_1, "componentslast")
+                append_input(component_inputs, v2_node_2, "componentsin")
+                append_input(component_inputs, v2_node_2, "componentslast")
+
+            for comp_in, comp_out in zip(component_inputs, component_outputs):
+                in_prop, in_node = comp_in
+                out_prop, out_comp_node = comp_out
+                out_comp_node.newPropertyConnection(out_prop, in_node, in_prop)
+            
+            return out_node
+
+        if total_components == 1:
+            return component_outputs[0][1]
+
+        self._error("Literal parsing error", operator)
+
     def parse_swizzling(self, operator: ast.Attribute) -> sd.api.SDNode:
         num_components = len(operator.attr)
         if num_components > 4:
@@ -997,6 +1122,9 @@ class NodeCreator:
                 node = self.create_graph_node("sbs::function::const_float1")
                 node.setInputPropertyValueFromId("__constant__", sd.api.SDValueFloat.sNew(value))
                 return node
+
+        if isinstance(operator, ast.Set):
+            return self.parse_literal(operator)
 
         if isinstance(operator, ast.Attribute):
             operator: ast.Attribute
