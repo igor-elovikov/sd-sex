@@ -983,6 +983,25 @@ class NodeCreator:
 
             return operator_node
 
+    def parse_augassign(self, operator: ast.AugAssign) -> sd.api.SDNode:
+        if type(operator.op) in binary_operator_map:
+
+            operator_node = self.create_graph_node(binary_operator_map[type(operator.op)])
+
+            left_node = self.get_variable_node(operator.target.id)
+            right_node = self.parse_operator(operator.value)
+            
+            left_node.newPropertyConnectionFromId(output_id, operator_node, "a")
+            right_input = "b"
+            if isinstance(operator.op, ast.MatMult):
+                right_input = "scalar"
+            right_node.newPropertyConnectionFromId(output_id, operator_node, right_input)
+
+            self.var_scope[operator.target.id] = operator_node
+
+            return operator_node
+
+
     def parse_unary_operator(self, operator: ast.UnaryOp) -> sd.api.SDNode:
         if type(operator.op) in unary_operator_map:
             node = self.create_graph_node(unary_operator_map[type(operator.op)])
@@ -1092,6 +1111,13 @@ class NodeCreator:
 
         return node
 
+    def get_variable_node(self, variable_name: str) -> sd.api.SDNode:
+            if variable_name in self.var_scope:
+                return self.var_scope[variable_name]
+            else:
+                self._error(f"Variable [{variable_name}] not found", operator)
+
+
     @check_operator_types
     def parse_operator(self, operator) -> sd.api.SDNode:
         if isinstance(operator, ast.BinOp):
@@ -1138,11 +1164,10 @@ class NodeCreator:
         if isinstance(operator, ast.Name):
             operator: ast.Name
             variable_name = operator.id
+            return self.get_variable_node(variable_name)
 
-            if variable_name in self.var_scope:
-                return self.var_scope[variable_name]
-            else:
-                self._error(f"Variable [{variable_name}] not found", operator)
+        if isinstance(operator, ast.AugAssign):
+            return self.parse_augassign(operator)
 
         if isinstance(operator, ast.NameConstant):
             operator: ast.NameConstant
@@ -1226,7 +1251,10 @@ class NodeCreator:
         expressions = tree.body
 
         for expr in expressions:
-            expr_node = self.parse_operator(expr.value)
+            if not isinstance(expr, ast.AugAssign):
+                expr_node = self.parse_operator(expr.value)
+            else:
+                expr_node = self.parse_operator(expr)
 
             # Assignment
             if isinstance(expr, ast.Assign):
@@ -1265,7 +1293,7 @@ class NodeCreator:
                 else:
                     self._error(f"Can't cast {expr_type} to {variable_type} for variable [{variable_name}] assigment", op)
 
-            # Return statemetn
+            # Return statement
             if isinstance(expr, ast.Return):
                 self.graph.setOutputNode(expr_node, True)
 
