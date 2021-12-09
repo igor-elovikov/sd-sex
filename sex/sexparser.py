@@ -1,9 +1,13 @@
+from __future__ import annotations
+
 import ast
 import re
 import os
 
 import sd
+import sd.api
 from sd.api.sdbasetypes import float2
+from sd.api.sdproperty import SDPropertyCategory
 
 grid_size = 1.4 * sd.ui.graphgrid.GraphGrid.sGetFirstLevelSize()
 max_nodes_in_row = 20
@@ -146,8 +150,320 @@ sd_integer_vector_types = {
     4 : (sd.api.SDValueInt4, sd.api.sdbasetypes.int4)
 }
 
+
+implicit_casts_map = {
+    ("int", "float"): "sbs::function::tofloat",
+    ("int2", "float2"): "sbs::function::tofloat2",
+    ("int3", "float3"): "sbs::function::tofloat3",
+    ("int4", "float4"): "sbs::function::tofloat4",
+    ("float", "int"): "sbs::function::toint1",
+    ("float2", "int2"): "sbs::function::toint2",
+    ("float3", "int3"): "sbs::function::toint3",
+    ("float4", "int4"): "sbs::function::toint4",            
+}
+
+class Connection:
+    def __init__(self, connection: sd.api.SDConnection, in_node: sd.api.SDNode, out_node: sd.api.SDNode,
+            in_property: sd.api.SDProperty, out_property: sd.api.SDProperty) -> None:
+        self.connection: sd.api.SDConnection = connection
+        self.in_node: sd.api.SDNode = in_node
+        self.out_node: sd.api.SDNode = out_node
+        self.in_property: sd.api.SDProperty = in_property
+        self.out_property: sd.api.SDProperty = out_property
+
+    def get_out_types(self) -> list[str]:
+        out_types = self.out_property.getTypes()
+        return [t.getId() for t in out_types]
+
+
 class ParserError(Exception):
     pass
+
+def get_base_type(type_id: str) -> str:
+    if type_id.startswith("int"):
+        return "int"
+    return "float"
+
+def get_num_components(type_id: str) -> int:
+    if type_id in ("float", "int", "bool"):
+        return 1
+    if type_id in ("float2", "int2"):
+        return 2
+    if type_id in ("float3", "int3"):
+        return 3
+    if type_id in ("float4", "int4"):
+        return 4
+
+    return -1
+
+def get_type_from_base(base_type: str, comps: int) -> str:
+    if comps == 1:
+        return base_type
+    return f"{base_type}{comps}"
+
+def implicit_conversion(parser: NodeCreator, in_node: sd.api.SDNode, to_type: str) -> sd.api.SDNode:
+
+    in_property = in_node.getPropertyFromId(output_id, SDPropertyCategory.Output)
+    in_type = in_property.getType().getId()
+
+    cast = (in_type, to_type)
+
+    if cast in implicit_casts_map:
+
+        cast_function = implicit_casts_map[cast]
+        cast_node: sd.api.SDNode = parser.create_graph_node(cast_function)
+        in_node.newPropertyConnectionFromId(in_property.getId(), cast_node, "value")
+
+        return cast_node
+
+    in_comps = get_num_components(in_type)
+    out_comps = get_num_components(to_type)
+
+    if in_comps == 1 and out_comps > 1:
+        return implicit_conversion_scalar_to_vector(parser, in_node, to_type)
+
+    if in_comps != out_comps and in_comps > 1 and out_comps > 1:
+        return implicit_conversion_vector_to_vector(parser, in_node, to_type)
+
+    if in_comps > 1 and out_comps == 1:
+        return implicit_conversion_vector_to_scalar(parser, in_node, to_type)
+
+    
+    return None
+
+def implicit_conversion_scalar_to_vector(parser: NodeCreator, in_node: sd.api.SDNode, to_type: str) -> sd.api.SDNode:
+    in_property = in_node.getPropertyFromId(output_id, SDPropertyCategory.Output)
+    in_type = in_property.getType().getId()
+
+    in_base_type = get_base_type(in_type)
+    out_base_type = get_base_type(to_type)
+
+    out_components = get_num_components(to_type)
+
+    vector_type = "vector" if out_base_type == "float" else "ivector"
+
+    vector_type_2 = f"sbs::function::{vector_type}2"
+    vector_type_3 = f"sbs::function::{vector_type}3"
+    vector_type_4 = f"sbs::function::{vector_type}4"
+
+    if in_base_type != out_base_type:
+        cast = (in_base_type, out_base_type)
+
+        if cast not in implicit_casts_map:
+            return None
+
+        cast_function = implicit_casts_map[cast]
+        cast_node = parser.create_graph_node(cast_function)
+
+        in_node.newPropertyConnectionFromId(in_property.getId(), cast_node, "value")
+        in_node = cast_node
+        in_property = cast_node.getPropertyFromId(output_id, sd.api.sdproperty.SDPropertyCategory.Output)
+
+    if out_components == 2:
+        v2_node: sd.api.SDNode = parser.create_graph_node(vector_type_2)
+
+        in_node.newPropertyConnectionFromId(in_property.getId(), v2_node, "componentsin")
+        in_node.newPropertyConnectionFromId(in_property.getId(), v2_node, "componentslast")
+
+        return v2_node
+
+    if out_components == 3:
+        v3_node: sd.api.SDNode = parser.create_graph_node(vector_type_3)
+        v2_node: sd.api.SDNode = parser.create_graph_node(vector_type_2)
+        v2_node.newPropertyConnectionFromId(output_id, v3_node, "componentsin")
+
+        in_node.newPropertyConnectionFromId(in_property.getId(), v2_node, "componentsin")
+        in_node.newPropertyConnectionFromId(in_property.getId(), v2_node, "componentslast")
+        in_node.newPropertyConnectionFromId(in_property.getId(), v3_node, "componentslast")
+
+        return v3_node
+
+    if out_components == 4:
+        v4_node: sd.api.SDNode = parser.create_graph_node(vector_type_4)
+
+        v2_node_1: sd.api.SDNode = parser.create_graph_node(vector_type_2)
+        v2_node_2: sd.api.SDNode = parser.create_graph_node(vector_type_2)
+
+
+        v2_node_1.newPropertyConnectionFromId(output_id, v4_node, "componentsin")
+        v2_node_2.newPropertyConnectionFromId(output_id, v4_node, "componentslast")
+
+        in_node.newPropertyConnectionFromId(in_property.getId(), v2_node_1, "componentsin")
+        in_node.newPropertyConnectionFromId(in_property.getId(), v2_node_1, "componentslast")
+        in_node.newPropertyConnectionFromId(in_property.getId(), v2_node_2, "componentsin")
+        in_node.newPropertyConnectionFromId(in_property.getId(), v2_node_2, "componentslast")
+
+        return v4_node
+
+    return None
+
+def implicit_conversion_vector_to_vector(parser: NodeCreator, in_node: sd.api.SDNode, to_type: str) -> sd.api.SDNode:
+    in_property = in_node.getPropertyFromId(output_id, SDPropertyCategory.Output)
+    in_type = in_property.getType().getId()
+
+    in_base_type = get_base_type(in_type)
+    out_base_type = get_base_type(to_type)
+
+    in_components = get_num_components(in_type)
+    out_components = get_num_components(to_type)
+
+    vector_type = "vector" if out_base_type == "float" else "ivector"
+    swizzle_type = "sbs::function::swizzle" if out_base_type == "float" else "sbs::function::iswizzle"
+
+    vector_type_2 = f"sbs::function::{vector_type}2"
+    vector_type_3 = f"sbs::function::{vector_type}3"
+    vector_type_4 = f"sbs::function::{vector_type}4"
+
+    swizzle_1 = f"{swizzle_type}1"
+    swizzle_2 = f"{swizzle_type}2"
+
+    if in_base_type != out_base_type:
+        cast = (in_type, get_type_from_base(out_base_type, in_components))
+
+        if cast not in implicit_casts_map:
+            return None
+
+        cast_function = implicit_casts_map[cast]
+        cast_node = parser.create_graph_node(cast_function)
+
+        in_node.newPropertyConnectionFromId(in_property.getId(), cast_node, "value")
+        in_node = cast_node
+        in_property = cast_node.getPropertyFromId(output_id, sd.api.sdproperty.SDPropertyCategory.Output)
+
+
+    if in_components == 2:
+
+        if out_components == 3:
+            v_node: sd.api.SDNode = parser.create_graph_node(vector_type_3)
+        elif out_components == 4: 
+            v_node: sd.api.SDNode = parser.create_graph_node(vector_type_4)
+        else:
+            return None
+        in_node.newPropertyConnectionFromId(in_property.getId(), v_node, "componentsin")
+        return v_node
+
+    if in_components == 3:
+
+        xy_node = parser.create_graph_node(swizzle_2)
+        z_node = parser.create_graph_node(swizzle_1)
+
+        in_node.newPropertyConnectionFromId(in_property.getId(), xy_node, "vector")
+        in_node.newPropertyConnectionFromId(in_property.getId(), z_node, "vector")
+
+        sd_value_type, sd_base_type = sd_integer_vector_types[2]
+        xy_node.setInputPropertyValueFromId("__constant__", sd_value_type.sNew(sd_base_type(0, 1)))
+        sd_value_type, sd_base_type = sd_integer_vector_types[1]
+        z_node.setInputPropertyValueFromId("__constant__", sd_value_type.sNew(sd_base_type(2)))
+
+        if out_components == 2:
+            v_node: sd.api.SDNode = parser.create_graph_node(vector_type_2)
+            xy_node.newPropertyConnectionFromId(in_property.getId(), v_node, "componentsin")
+        elif out_components == 4: 
+            v_node: sd.api.SDNode = parser.create_graph_node(vector_type_4)
+            xy_node.newPropertyConnectionFromId(output_id, v_node, "componentsin")
+            z_node.newPropertyConnectionFromId(output_id, v_node, "componentslast")
+        else:
+            return None
+
+        return v_node
+            
+    if in_components == 4:
+
+        xy_node = parser.create_graph_node(swizzle_2)
+        z_node = parser.create_graph_node(swizzle_1)
+
+        in_node.newPropertyConnectionFromId(in_property.getId(), xy_node, "vector")
+        in_node.newPropertyConnectionFromId(in_property.getId(), z_node, "vector")
+
+        sd_value_type, sd_base_type = sd_integer_vector_types[2]
+        xy_node.setInputPropertyValueFromId("__constant__", sd_value_type.sNew(sd_base_type(0, 1)))
+        sd_value_type, sd_base_type = sd_integer_vector_types[1]
+        z_node.setInputPropertyValueFromId("__constant__", sd_value_type.sNew(sd_base_type(2)))
+
+        if out_components == 2:
+            v_node: sd.api.SDNode = parser.create_graph_node(vector_type_2)
+            xy_node.newPropertyConnectionFromId(in_property.getId(), v_node, "componentsin")
+        elif out_components == 3: 
+            v_node: sd.api.SDNode = parser.create_graph_node(vector_type_3)
+            xy_node.newPropertyConnectionFromId(output_id, v_node, "componentsin")
+            z_node.newPropertyConnectionFromId(output_id, v_node, "componentslast")
+        else:
+            return None
+
+        return v_node
+
+    return None
+
+def implicit_conversion_vector_to_scalar(parser: NodeCreator, in_node: sd.api.SDNode, to_type: str) -> sd.api.SDNode:
+    in_property = in_node.getPropertyFromId(output_id, SDPropertyCategory.Output)
+    in_type = in_property.getType().getId()
+
+    in_base_type = get_base_type(in_type)
+    out_base_type = get_base_type(to_type)
+
+    in_components = get_num_components(in_type)
+    swizzle_type = "sbs::function::swizzle1" if out_base_type == "float" else "sbs::function::iswizzle1"
+
+    if in_base_type != out_base_type:
+        cast = (in_type, get_type_from_base(out_base_type, in_components))
+
+        if cast not in implicit_casts_map:
+            return None
+
+        cast_function = implicit_casts_map[cast]
+        cast_node = parser.create_graph_node(cast_function)
+
+        in_node.newPropertyConnectionFromId(in_property.getId(), cast_node, "value")
+        in_node = cast_node
+        in_property = cast_node.getPropertyFromId(output_id, sd.api.sdproperty.SDPropertyCategory.Output)
+
+    x_node = parser.create_graph_node(swizzle_type)
+    sd_value_type, sd_base_type = sd_integer_vector_types[1]
+    x_node.setInputPropertyValueFromId("__constant__", sd_value_type.sNew(sd_base_type(0)))
+
+    in_node.newPropertyConnectionFromId(in_property.getId(), x_node, "vector")
+
+    return x_node
+
+
+def get_multityped_best_match(connections: list[Connection]):
+    in_base_types = set()
+    in_max_components = -1
+
+    out_base_types = set()
+    out_max_components = -1
+
+    for connection in connections:
+
+        in_type = connection.in_property.getType().getId()
+        
+        in_base_types.add(get_base_type(in_type))
+        in_comps = get_num_components(in_type)
+        in_max_components = max(in_max_components, in_comps)
+
+        out_types = connection.get_out_types()
+
+        out_connection_base_types = set([get_base_type(t) for t in out_types])
+        out_connection_components = max([get_num_components(t) for t in out_types])
+
+        out_base_types = out_base_types.union(out_connection_base_types)
+        out_max_components = max(out_connection_components, out_max_components)
+
+    components = in_max_components
+    if components > out_max_components:
+        components = out_max_components
+
+    out_base_type = "float"
+
+    if "float" in out_base_types and "int" in out_base_types:
+        if "float" not in in_base_types:
+            out_base_type = "int"
+
+    if "float" not in out_base_types and "int" in out_base_types:
+        out_base_type = "int"
+
+    return get_type_from_base(out_base_type, components)
+    
 
 def check_operator_types(op):
     def wrapper(parser, operator) -> sd.api.SDNode:
@@ -156,20 +472,61 @@ def check_operator_types(op):
 
         # can't check swizzling (something wrong with connection types)
         is_swizzling_node = "sbs::function::swizzle" in node_definition or "sbs::function::iswizzle" in node_definition
-        if node and not is_swizzling_node:
+        if node and not is_swizzling_node and not isinstance(operator, ast.Name):
             node_inputs = node.getProperties(sd.api.sdproperty.SDPropertyCategory.Input)
 
             n_input: sd.api.SDProperty
-            for input_index, n_input in enumerate(node_inputs):
 
-                if n_input.isConnectable():
-                    input_connections = node.getPropertyConnections(n_input)
-                    if len(input_connections):
-                        prop_connection: sd.api.SDConnection = input_connections[0]
-                        in_type = prop_connection.getInputProperty().getType().getId()
-                        out_type = prop_connection.getOutputProperty().getType().getId()
-                        if in_type != out_type:
-                            parser._error(f"Type mismatch for parameter [{input_index + 1}]: {out_type} was expected ({in_type} was received)", operator)
+            connections: list[Connection] = []
+            multityped_connections: list[Connection] = []
+
+            for n_input in node_inputs:
+
+                if not n_input.isConnectable():
+                    continue
+                input_connections = node.getPropertyConnections(n_input)
+
+                if not len(input_connections):
+                    continue
+
+                prop_connection: sd.api.SDConnection = input_connections[0]
+                in_node = prop_connection.getInputPropertyNode()
+                out_node = prop_connection.getOutputPropertyNode()
+                in_property = prop_connection.getInputProperty()
+                out_property = prop_connection.getOutputProperty()
+
+                connection = Connection(prop_connection, in_node, out_node, in_property, out_property)
+                out_types = connection.get_out_types()
+
+                if len(out_types) > 1:
+                    multityped_connections.append(connection)
+                else:
+                    connections.append(connection)
+
+            if multityped_connections:
+                out_type = get_multityped_best_match(multityped_connections)
+                for c in multityped_connections:
+                    in_type = c.in_property.getType().getId()
+                    if in_type == out_type:
+                        continue
+                    implicit_cast_node = implicit_conversion(parser, c.in_node, out_type)
+                    if implicit_cast_node is not None:
+                        implicit_cast_node.newPropertyConnectionFromId(output_id, out_node, c.out_property.getId())
+                    else:
+                        parser._error(f"Cant cast {in_type} to {out_type} for operator", operator)
+
+            for c in connections:
+                out_type = c.out_property.getType().getId()
+                in_type = c.in_property.getType().getId()
+                if in_type == out_type:
+                    continue
+                implicit_cast_node = implicit_conversion(parser, c.in_node, out_type)
+                if implicit_cast_node is not None:
+                    implicit_cast_node.newPropertyConnectionFromId(output_id, out_node, c.out_property.getId())
+                else:
+                    parser._error(f"Cant cast {in_type} to {out_type} for operator", operator)
+
+
         return node
 
     return wrapper   
@@ -237,8 +594,6 @@ class NodeCreator:
 
                 if props.getSize() > 0:
                     props_list = [props.getItem(i).getId() for i in range(props.getSize())]
-
-                #print((res_id, func_name, props_list))
 
                 imported_functions[func_name] = (sd_resource, props_list)
 
@@ -751,6 +1106,31 @@ class NodeCreator:
 
                 if variable_name == output_variable_name:
                     self.graph.setOutputNode(self.var_scope[variable_name], True)
+
+            if isinstance(expr, ast.AnnAssign):
+                op: ast.AnnAssign = expr
+                variable_name = op.target.id
+                variable_type = op.annotation.id
+
+                expr_output: sd.api.SDProperty = expr_node.getPropertyFromId(output_id, SDPropertyCategory.Output)
+                expr_type = expr_output.getType().getId()
+
+                var_node: sd.api.SDNode = None
+
+                if expr_type == variable_type:
+                    var_node = expr_node
+                else:
+                    var_node = implicit_conversion(self, expr_node, variable_type)
+                
+                if var_node is not None:
+                    self.var_scope[variable_name] = var_node
+                    self.var_declare_line[variable_name] = expr.lineno
+
+                    if variable_name == output_variable_name:
+                        self.graph.setOutputNode(self.var_scope[variable_name], True)
+
+                else:
+                    self._error(f"Can't cast {expr_type} to {variable_type} for variable [{variable_name}] assigment", op)
 
         output_nodes = self.graph.getOutputNodes()
 
