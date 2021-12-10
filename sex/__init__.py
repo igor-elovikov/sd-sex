@@ -334,6 +334,7 @@ class MainWindow(QMainWindow):
                 print(decorators)
 
                 use_node_inputs = False
+                no_inputs = False
 
                 if sexparser.PIXEL_PROCESSOR_DECORATOR in decorators:
                     decorator = decorators[sexparser.PIXEL_PROCESSOR_DECORATOR]
@@ -343,6 +344,16 @@ class MainWindow(QMainWindow):
                     function_graph = pp_node.newPropertyGraph(prop, sdu.function_graph_class)
                     inputs_node = pp_node
                     use_node_inputs = True
+
+                if sexparser.VALUE_PROCESSOR_DECORATOR in decorators:
+                    decorator = decorators[sexparser.VALUE_PROCESSOR_DECORATOR]
+                    graph = self.get_package_compgraph(resources, decorator.args["graph"])
+                    vp_node = sdu.get_graph_node(graph, uid=decorator.args["uid"])
+                    prop = sdu.get_node_input(vp_node, "function")
+                    function_graph = vp_node.newPropertyGraph(prop, sdu.function_graph_class)
+                    inputs_node = vp_node
+                    use_node_inputs = True
+
 
                 if function_graph is None:
                     function_resource = self.get_package_functiongraph(resources, function_name)
