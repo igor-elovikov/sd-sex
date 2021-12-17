@@ -108,9 +108,9 @@ def get_node_all_annotations(node: sd.api.SDNode) -> sd.api.SDArray:
     return node.getProperties(SDPropertyCategory.Annotation)
 
 def get_node_annotation(node: sd.api.SDNode, annotation_id: str) -> sd.api.SDProperty:
-    annotations = get_node_all_annotations(node)
+    sd_annotations = get_node_all_annotations(node)
     a: sd.api.SDProperty
-    return next((a for a in annotations if a.getId() == annotation_id), None)
+    return next((a for a in sd_annotations if a.getId() == annotation_id), None)
 
 def get_node_annotation_value(node: sd.api.SDNode, annotation_id: str):
     a: sd.api.SDProperty = get_node_annotation(node, annotation_id)
@@ -155,9 +155,9 @@ def get_property_all_annotations(graph: sd.api.SDGraph, prop: sd.api.SDProperty)
     return graph.getPropertyAnnotations(prop)
 
 def get_property_annotation(graph: sd.api.SDGraph, prop: sd.api.SDProperty, annotation_id: str) -> sd.api.SDProperty:
-    annotations = graph.getPropertyAnnotations(prop)
+    sd_annotations = graph.getPropertyAnnotations(prop)
     p: sd.api.SDProperty
-    return next((p for p in annotations if p.getId() == annotation_id), None)
+    return next((p for p in sd_annotations if p.getId() == annotation_id), None)
 
 def print_all_node_inputs(node: sd.api.SDNode):
     inputs: list[sd.api.SDProperty] = get_node_all_inputs(node)
@@ -171,16 +171,16 @@ def get_property_annotation_value(graph: sd.api.SDGraph, prop: sd.api.SDProperty
         return None
 
 def print_property_all_annotations(graph: sd.api.SDGraph, prop: sd.api.SDProperty):
-    annotations = get_property_all_annotations(graph, prop)
+    sd_annotations = get_property_all_annotations(graph, prop)
     a: sd.api.SDProperty
-    for a in annotations:
+    for a in sd_annotations:
         value = get_property_annotation_value(graph, prop, a.getId())
         print(f"{a.getId()} = {value}")
 
 def print_node_all_annotations(node: sd.api.SDNode):
-    annotations = get_node_all_annotations(node)
+    sd_annotations = get_node_all_annotations(node)
     a: sd.api.SDProperty
-    for a in annotations:
+    for a in sd_annotations:
         value = node.getAnnotationPropertyValueFromId(a.getId())
         if value is not None:
             value = value.get()

@@ -19,6 +19,8 @@ declare_inputs_function_name = "declare_inputs"
 
 PIXEL_PROCESSOR_DECORATOR = "pixel_processor"
 VALUE_PROCESSOR_DECORATOR = "value_processor"
+NODE_PROPERTY_DECORATOR = "node_property"
+FXMAP_PROPERTY_DECORATOR = "fxmap_property"
 
 binary_operator_map = {
     ast.Add: "sbs::function::add",

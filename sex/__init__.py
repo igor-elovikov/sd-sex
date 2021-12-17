@@ -11,7 +11,7 @@ from time import gmtime, strftime
 from PySide2.QtGui import QFont, QIcon
 from PySide2.QtWidgets import QApplication, QMainWindow, QToolBar
 
-from sex.sexparser import PIXEL_PROCESSOR_DECORATOR, VALUE_PROCESSOR_DECORATOR
+from sex.sexparser import PIXEL_PROCESSOR_DECORATOR, VALUE_PROCESSOR_DECORATOR, NODE_PROPERTY_DECORATOR, FXMAP_PROPERTY_DECORATOR
 
 sys.path.append(os.path.dirname(__file__))
 
@@ -187,7 +187,7 @@ class MainWindow(QMainWindow):
                              + ["range"])
 
         builtin_types = ([*sexparser.constants_map] + [*sexparser.get_variable_map] 
-            + [*sexparser.casts_map] + [PIXEL_PROCESSOR_DECORATOR, VALUE_PROCESSOR_DECORATOR])
+            + [*sexparser.casts_map] + [PIXEL_PROCESSOR_DECORATOR, VALUE_PROCESSOR_DECORATOR, NODE_PROPERTY_DECORATOR, FXMAP_PROPERTY_DECORATOR])
 
         self.highlighter.setup_rules(builtin_functions, builtin_types)
         self.view_highlighter.setup_rules(builtin_functions, builtin_types)
@@ -322,8 +322,6 @@ class MainWindow(QMainWindow):
                 if not isinstance(node, ast.FunctionDef):
                     continue
 
-                print(ast.dump(node))
-
                 function_name = node.name
 
                 
@@ -331,13 +329,11 @@ class MainWindow(QMainWindow):
                 inputs_node: sd.api.SDNode = None
 
                 decorators = parse_decorators(node.decorator_list)
-                print(decorators)
 
                 use_node_inputs = False
-                no_inputs = False
 
-                if sexparser.PIXEL_PROCESSOR_DECORATOR in decorators:
-                    decorator = decorators[sexparser.PIXEL_PROCESSOR_DECORATOR]
+                if PIXEL_PROCESSOR_DECORATOR in decorators:
+                    decorator = decorators[PIXEL_PROCESSOR_DECORATOR]
                     graph = self.get_package_compgraph(resources, decorator.args["graph"])
                     pp_node = sdu.get_graph_node(graph, uid=decorator.args["uid"])
                     prop = sdu.get_node_input(pp_node, "perpixel")
@@ -345,14 +341,26 @@ class MainWindow(QMainWindow):
                     inputs_node = pp_node
                     use_node_inputs = True
 
-                if sexparser.VALUE_PROCESSOR_DECORATOR in decorators:
-                    decorator = decorators[sexparser.VALUE_PROCESSOR_DECORATOR]
+                if VALUE_PROCESSOR_DECORATOR in decorators:
+                    decorator = decorators[VALUE_PROCESSOR_DECORATOR]
                     graph = self.get_package_compgraph(resources, decorator.args["graph"])
                     vp_node = sdu.get_graph_node(graph, uid=decorator.args["uid"])
                     prop = sdu.get_node_input(vp_node, "function")
                     function_graph = vp_node.newPropertyGraph(prop, sdu.function_graph_class)
                     inputs_node = vp_node
                     use_node_inputs = True
+
+                if NODE_PROPERTY_DECORATOR in decorators:
+                    decorator = decorators[NODE_PROPERTY_DECORATOR]
+                    graph = self.get_package_compgraph(resources, decorator.args["graph"])
+                    comp_node = sdu.get_graph_node(graph, uid=decorator.args["uid"])
+
+                    prop: sd.api.SDProperty = None
+                    if "pid" in decorator.args:
+                        prop = sdu.get_node_input(comp_node, decorator.args["pid"])
+
+                    function_graph = comp_node.newPropertyGraph(prop, sdu.function_graph_class)
+                    inputs_node = None
 
 
                 if function_graph is None:
@@ -371,24 +379,24 @@ class MainWindow(QMainWindow):
                     for graph_node in function_graph.getNodes():
                         function_graph.deleteNode(graph_node)
 
-
                 inputs = {}
-                arg: ast.arg
-                for arg in node.args.args:
-                    input_name = f"__{function_name}_arg_{arg.arg}" if not use_node_inputs else f"#{arg.arg}"
-                    inputs[input_name] = (arg.arg, arg.annotation.id)
+                if inputs_node is not None:
 
+                    arg: ast.arg
+                    for arg in node.args.args:
+                        input_name = f"__{function_name}_arg_{arg.arg}" if not use_node_inputs else f"#{arg.arg}"
+                        inputs[input_name] = (arg.arg, arg.annotation.id)
 
-                for inp in inputs:
-                    if use_node_inputs:
-                        node_inputs = inputs_node.getProperties(SDPropertyCategory.Input)
-                        for ni in node_inputs:
-                            if ni.getId().startswith("#"):
-                                inputs_node.deleteProperty(ni)
-                    var_name, var_type = inputs[inp]
-                    prop: sd.api.SDProperty = inputs_node.newProperty(inp, sd_type_map[var_type], SDPropertyCategory.Input)
-                    if not use_node_inputs:
-                        inputs_node.setPropertyAnnotationValueFromId(prop, "label", sd.api.SDValueString.sNew(var_name))
+                    for inp in inputs:
+                        if use_node_inputs:
+                            node_inputs = inputs_node.getProperties(SDPropertyCategory.Input)
+                            for ni in node_inputs:
+                                if ni.getId().startswith("#"):
+                                    inputs_node.deleteProperty(ni)
+                        var_name, var_type = inputs[inp]
+                        prop: sd.api.SDProperty = inputs_node.newProperty(inp, sd_type_map[var_type], SDPropertyCategory.Input)
+                        if not use_node_inputs:
+                            inputs_node.setPropertyAnnotationValueFromId(prop, "label", sd.api.SDValueString.sNew(var_name))
 
                 parser.graph = function_graph
                 self.parse_expression_tree(node, inputs)
