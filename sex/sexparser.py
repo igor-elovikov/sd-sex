@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+import imp
 import re
 import os
 
@@ -15,6 +16,8 @@ max_nodes_in_row = 20
 output_id = "unique_filter_output"
 output_variable_name = "_OUT_"
 export_function_name = "export"
+setvar_function_name = "setvar"
+sequence_function_name = "sequence"
 declare_inputs_function_name = "declare_inputs"
 
 PIXEL_PROCESSOR_DECORATOR = "pixel_processor"
@@ -479,7 +482,7 @@ def check_operator_types(op):
         node_definition = node.getDefinition().getId() if node else ""
 
         # can't check swizzling (something wrong with connection types)
-        is_swizzling_node = "sbs::function::swizzle" in node_definition or "sbs::function::iswizzle" in node_definition
+        is_swizzling_node = "sbs::function::swizzle" in node_definition or "sbs::function::iswizzle" in node_definition or "sbs::function::sequence" in node_definition
         if node and not is_swizzling_node and not isinstance(operator, ast.Name) and not isinstance(operator, ast.Set):
             node_inputs = node.getProperties(sd.api.sdproperty.SDPropertyCategory.Input)
 
@@ -1243,6 +1246,38 @@ class NodeCreator:
 
                 return None
 
+            if function_name == setvar_function_name:
+                function_args = operator.args
+
+                if len(function_args) != 2:
+                    self._error(f"{setvar_function_name}() takes two arguments ({len(function_args)} given)")
+
+                if not isinstance(function_args[0], ast.Str):
+                    self._error(f"{setvar_function_name}() first argument has to be string literal as variable name")
+
+                value_node = self.parse_operator(function_args[1])
+
+                node: sd.api.SDNode = self.create_graph_node("sbs::function::set")
+                node.setInputPropertyValueFromId("__constant__", sd.api.SDValueString.sNew(function_args[0].s))
+                value_node.newPropertyConnectionFromId(output_id, node, "value")
+
+                return node
+
+            if function_name == sequence_function_name:
+                function_args = operator.args
+
+                if len(function_args) != 2:
+                    self._error(f"{sequence_function_name}() takes two arguments ({len(function_args)} given)")
+
+                seqin_node = self.parse_operator(function_args[0])
+                seqlast_node = self.parse_operator(function_args[1])
+
+                node = self.create_graph_node("sbs::function::sequence")
+
+                seqin_node.newPropertyConnectionFromId(output_id, node, "seqin")
+                seqlast_node.newPropertyConnectionFromId(output_id, node, "seqlast")
+
+                return node
 
 
             self._error(f"Function {function_name}() not found", operator)
