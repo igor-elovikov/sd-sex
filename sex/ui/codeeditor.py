@@ -3,7 +3,7 @@ import sys
 from PySide2.QtCore import Qt, Signal, QRect, QSize
 from PySide2.QtGui import QFont, QTextCursor, QTextOption, QColor, QPainter, QTextFormat
 from PySide2.QtWidgets import (QApplication, QCompleter, QHBoxLayout,
-                               QLineEdit, QPlainTextEdit, QWidget)
+                               QLineEdit, QPlainTextEdit, QWidget, QTextEdit)
 
 class QLineNumberArea(QWidget):
     def __init__(self, editor):
@@ -44,8 +44,10 @@ class CodeEditor(QPlainTextEdit):
         self.blockCountChanged.connect(self.update_line_number_area_width)
         self.updateRequest.connect(self.updateLineNumberArea)
 
-    def setup_editor(self, font_size):
-        font = QFont("Courier New")
+        self.cursorPositionChanged.connect(self.highlightCurrentLine)
+
+    def setup_editor(self, font, font_size):
+        font = QFont(font)
         self.font_size = font_size
         font.setStyleHint(QFont.Monospace)
         font.setPointSize(self.font_size)
@@ -81,8 +83,9 @@ class CodeEditor(QPlainTextEdit):
     def highlightCurrentLine(self):
         extraSelections = []
         if not self.isReadOnly():
-            selection = QPlainTextEdit.ExtraSelection()
-            lineColor = QColor(Qt.darkGray).lighter(160)
+            selection = QTextEdit.ExtraSelection()
+            
+            lineColor = QColor(Qt.darkGray).darker(300)
             selection.format.setBackground(lineColor)
             selection.format.setProperty(QTextFormat.FullWidthSelection, True)
             selection.cursor = self.textCursor()

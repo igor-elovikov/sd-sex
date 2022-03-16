@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import itertools as it
 import ast
+from typing import Any, NamedTuple, Type
 
 import sd
 import sd.api
 import sexparser
 from sd.api.sdproperty import SDPropertyCategory
+
+from enum import Enum, auto
 
 output_id = "unique_filter_output"
 function_graph_class = "SDSBSFunctionGraph"
@@ -14,8 +17,104 @@ comp_graph_class = "SDSBSCompGraph"
 
 ctx = sd.getContext()
 app = ctx.getSDApplication()
-ui_mgr = app.getUIMgr()
-pkg_mgr = app.getPackageMgr()
+ui_mgr: sd.api.SDUIMgr = app.getUIMgr()
+pkg_mgr: sd.api.SDPackageMgr = app.getPackageMgr()
+qt_mgr = app.getQtForPythonUIMgr()
+
+class SDType(Enum):
+    FLOAT = auto()
+    FLOAT2 = auto()
+    FLOAT3 = auto()
+    FLOAT4 = auto()
+    INT = auto()
+    INT2 = auto()
+    INT3 = auto()
+    INT4 = auto()
+    BOOL = auto()
+    STRING = auto()
+
+class UIParmEditor(Enum):
+    SLIDER = "slider"
+    DROPDOWN = "dropdownlist"
+    SIZEPOW2 = "sizepow2"
+    ANGLE = "angle"
+    COLOR = "color"
+    POSITION = "position"
+    TRANSFORM_OFFSET = "reverseposition"
+    TRANSFORMATION_INVERSE = "transformation"
+    TRANSFORMATION_FORWARD = "straighttransform"
+
+class SDTypeMetadata(NamedTuple):
+    base_type: Type
+    builtin_type: Type
+    size: int
+
+sd_types = {
+    SDType.FLOAT: sd.api.SDTypeFloat.sNew(),
+    SDType.FLOAT2: sd.api.SDTypeFloat2.sNew(),
+    SDType.FLOAT3: sd.api.SDTypeFloat3.sNew(),
+    SDType.FLOAT4: sd.api.SDTypeFloat4.sNew(),
+    SDType.INT: sd.api.SDTypeInt.sNew(),
+    SDType.INT2: sd.api.SDTypeInt2.sNew(),
+    SDType.INT3: sd.api.SDTypeInt3.sNew(),
+    SDType.INT4: sd.api.SDTypeInt4.sNew(),
+    SDType.BOOL: sd.api.SDTypeBool.sNew(),
+    SDType.STRING: sd.api.SDTypeString.sNew()
+}
+
+class Parm:
+
+    def __init__(self) -> None:
+        self.id: str = ""
+        self.label: str = ""
+        self.type: SDType = SDType.FLOAT
+        self.property: sd.api.SDProperty = None
+        self.graph: sd.api.SDGraph = None
+        self.annotations: dict[str, sd.api.SDProperty] = {}
+
+    def value(self) -> Any:
+        v: sd.api.SDValue = self.graph.getPropertyValue(self.property)
+        if v is not None:
+            return v.get()
+        else:
+            return None
+
+    def set(self, value) -> None:
+        self.graph.setPropertyValue(self.property, sd_value(value))
+
+    def set_label(self, label: str):
+        self.label = label
+        self.graph.setPropertyValue(self.annotations["description"], sd_value(label))
+
+    def set_editor(self, editor: UIParmEditor):
+        self.graph.setPropertyValue(self.annotations["editor"], sd_value(editor.value))
+
+    def set_min(self, min_value):
+        self.graph.setPropertyValue(self.annotations["min"], sd_value(min_value))
+
+    def set_max(self, max_value):
+        self.graph.setPropertyValue(self.annotations["min"], sd_value(max_value))
+
+    def set_clamp(self, does_clamp: bool):
+        self.graph.setPropertyValue(self.annotations["clamp"], sd_value(does_clamp))
+    
+    def set_step(self, step):
+        self.graph.setPropertyValue(self.annotations["step"], sd_value(step))
+
+    def set_group(self, group: str):
+        self.graph.setPropertyValue(self.annotations["group"], sd_value(group))
+        
+
+
+class CompGraph:
+    def __init__(self, sd_graph: sd.api.SDSBSCompGraph) -> None:
+        self.sd_graph = sd_graph
+        self.parms: dict[str, Parm] = {}
+
+    def create_parm(self, id: str, input_type: SDType) -> sd.api.SDProperty:
+        p = self.sd_graph.newProperty(id, sd_types[input_type], SDPropertyCategory.Input)
+        return p
+
 
 class GraphBuilder:
     def __init__(self, graph: sd.api.SDGraph=None):
@@ -63,6 +162,7 @@ class SDValue:
         (int, 3): (sd.api.SDValueInt3, sd.api.sdbasetypes.int3),
         (int, 4): (sd.api.SDValueInt4, sd.api.sdbasetypes.int4),
         (str, 1): (sd.api.SDValueString, str),
+        (bool, 1): (sd.api.SDValueBool, bool),
     }
     
     def __init__(self, value):
@@ -89,6 +189,12 @@ class SDValue:
             if builtin_type == value_type and type_len == value_len:
                 sd_value_type, sd_base_type = SDValue.sd_type_map[type_map_key]
                 self.sd_value = sd_value_type.sNew(sd_base_type(*value))
+
+def sd_value(value: Any) -> Any:
+    return SDValue(value).sd_value
+
+def current_graph() -> CompGraph:
+    return CompGraph(ui_mgr.getCurrentGraph())
 
 def get_node_all_inputs(node: sd.api.SDNode) -> sd.api.SDArray:
     return node.getProperties(SDPropertyCategory.Input)

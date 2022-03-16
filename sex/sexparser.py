@@ -1389,6 +1389,6 @@ class NodeCreator:
                     node_var_name = scope_keys[0]
                     node_var_line = self.var_declare_line[node_var_name]
                     if self.main_window:
-                        self.main_window.console_message(f"Warning: Unused variable [{node_var_name}] (declared at line {node_var_line})")
+                        self.main_window.console_message(f"<b><font color=\"yellow\">[WARNING]: </font></b> Unused variable [{node_var_name}] (declared at line {node_var_line})")
 
                 self.graph.deleteNode(created_node)

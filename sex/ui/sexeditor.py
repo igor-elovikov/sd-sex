@@ -15,7 +15,7 @@ from PySide2.QtGui import (QBrush, QColor, QConicalGradient, QCursor, QFont,
     QRadialGradient)
 from PySide2.QtWidgets import *
 
-from codeeditor import CodeEditor
+from .codeeditor import CodeEditor
 
 
 class Ui_MainWindow(object):
