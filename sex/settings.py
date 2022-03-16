@@ -21,7 +21,6 @@ class PluginSettings:
     "editor_font_size": 11,
     "console_font_size": 10,
     "tab_font_size": 11,
-    "button_font_size": 13,
     "tab_spaces": 4,
     "align_max_nodes": 50,
     "use_snippet_object": false,

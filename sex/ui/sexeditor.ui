@@ -19,7 +19,7 @@
      <number>6</number>
     </property>
     <item row="0" column="0">
-     <layout class="QVBoxLayout" name="verticalLayout" stretch="4,0,0">
+     <layout class="QVBoxLayout" name="verticalLayout" stretch="0">
       <property name="spacing">
        <number>10</number>
       </property>
@@ -34,7 +34,7 @@
          <enum>QTabWidget::Rounded</enum>
         </property>
         <property name="currentIndex">
-         <number>0</number>
+         <number>-1</number>
         </property>
         <property name="iconSize">
          <size>
@@ -45,83 +45,71 @@
         <property name="elideMode">
          <enum>Qt::ElideNone</enum>
         </property>
-        <widget class="QWidget" name="editor_tab">
-         <attribute name="title">
-          <string>  Code Editor  </string>
-         </attribute>
-         <layout class="QGridLayout" name="gridLayout_2">
-          <property name="leftMargin">
-           <number>0</number>
-          </property>
-          <property name="topMargin">
-           <number>6</number>
-          </property>
-          <property name="rightMargin">
-           <number>0</number>
-          </property>
-          <property name="bottomMargin">
-           <number>0</number>
-          </property>
-          <item row="1" column="0">
-           <widget class="CodeEditor" name="code_editor"/>
-          </item>
-         </layout>
-        </widget>
-        <widget class="QWidget" name="render_tab">
-         <attribute name="title">
-          <string>  View Generated Code  </string>
-         </attribute>
-         <layout class="QGridLayout" name="gridLayout_3">
-          <property name="leftMargin">
-           <number>0</number>
-          </property>
-          <property name="topMargin">
-           <number>6</number>
-          </property>
-          <property name="rightMargin">
-           <number>0</number>
-          </property>
-          <property name="bottomMargin">
-           <number>0</number>
-          </property>
-          <item row="0" column="0">
-           <widget class="CodeEditor" name="render_view">
-            <property name="readOnly">
-             <bool>true</bool>
-            </property>
-           </widget>
-          </item>
-         </layout>
-        </widget>
-       </widget>
-      </item>
-      <item>
-       <widget class="QPushButton" name="compile">
-        <property name="font">
-         <font>
-          <pointsize>14</pointsize>
-         </font>
+        <property name="tabsClosable">
+         <bool>true</bool>
         </property>
-        <property name="text">
-         <string>COMPILE</string>
+        <property name="movable">
+         <bool>true</bool>
         </property>
        </widget>
-      </item>
-      <item>
-       <widget class="QPlainTextEdit" name="console_output"/>
       </item>
      </layout>
     </item>
    </layout>
   </widget>
+  <widget class="QDockWidget" name="dockWidget">
+   <property name="font">
+    <font>
+     <pointsize>10</pointsize>
+    </font>
+   </property>
+   <property name="features">
+    <set>QDockWidget::NoDockWidgetFeatures</set>
+   </property>
+   <property name="windowTitle">
+    <string>    CONSOLE</string>
+   </property>
+   <attribute name="dockWidgetArea">
+    <number>8</number>
+   </attribute>
+   <widget class="QWidget" name="dockWidgetContents">
+    <layout class="QGridLayout" name="gridLayout_4">
+     <item row="0" column="0">
+      <widget class="QPlainTextEdit" name="console_output"/>
+     </item>
+    </layout>
+   </widget>
+  </widget>
+  <widget class="QToolBar" name="toolBar">
+   <property name="windowTitle">
+    <string>toolBar</string>
+   </property>
+   <property name="autoFillBackground">
+    <bool>false</bool>
+   </property>
+   <property name="iconSize">
+    <size>
+     <width>32</width>
+     <height>32</height>
+    </size>
+   </property>
+   <attribute name="toolBarArea">
+    <enum>TopToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+   <addaction name="actionCompile"/>
+  </widget>
+  <action name="actionCompile">
+   <property name="text">
+    <string>Compile</string>
+   </property>
+   <property name="toolTip">
+    <string>Compile To Graph</string>
+   </property>
+  </action>
  </widget>
- <customwidgets>
-  <customwidget>
-   <class>CodeEditor</class>
-   <extends>QPlainTextEdit</extends>
-   <header>codeeditor.h</header>
-  </customwidget>
- </customwidgets>
  <resources/>
  <connections/>
 </ui>

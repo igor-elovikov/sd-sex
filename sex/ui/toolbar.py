@@ -5,7 +5,9 @@ from PySide2.QtWidgets import QToolBar
 import sd.api
 import sexparser
 from sdutils import app, qt_mgr, ui_mgr
-from ui.window import MainWindow
+from ui.window import get_main_window
+
+from ui.editortab import EditorTab
 
 class SexToolBar(QToolBar):
     def __init__(self, graph_view_id, qt_ui_mgr, parser):
@@ -21,18 +23,30 @@ class SexToolBar(QToolBar):
         act.setToolTip("Open expression editor")
         act.triggered.connect(self.open_sex_window)
 
-    def open_sex_window(self, parser: sexparser.NodeCreator):
+    def open_sex_window(self):
         self.parser.import_functions("functions.sbs", app)
         self.parser.import_current_graph_functions(app)
 
-        main_sd_window = qt_mgr.getMainWindow()
         graph: sd.api.SDGraph = ui_mgr.getCurrentGraph()
 
-        window = MainWindow(main_sd_window, graph)
-        window.setWindowTitle(f"Expression Editor: {graph.getIdentifier()}")
-        window.show()
+        window = get_main_window()
 
-        src: str
+        graph_tab = window.find_graph_tab(graph)
+        if graph_tab is not None:
+            window.ui.tabs.setCurrentWidget(graph_tab)
+            return
+
+        editor_tab = EditorTab(window, graph)
+
+        tab_title = graph.getIdentifier()
+        if not tab_title:
+            tab_title = "[ Property Graph ]"
+
+        window.add_editor_tab(editor_tab, tab_title)
+        editor_tab.show()
+        window.ui.tabs.setCurrentWidget(editor_tab)
+
+        src: str = ""
         graph_objects = graph.getGraphObjects()
 
         found_snippet = False
@@ -44,10 +58,10 @@ class SexToolBar(QToolBar):
                 found_snippet = True
                 graph_object: sd.api.SDGraphObjectFrame
                 src = graph_object.getDescription()
-                window.ui.code_editor.setPlainText(src)
-                window.frame_object = graph_object
 
-                window.save_source(src)
+                editor_tab.set_source(src)
+                editor_tab.frame_object = graph_object
+                editor_tab.save_source()
 
         if not found_snippet:
             user_data_string = graph.getAnnotationPropertyValueFromId("userdata")
@@ -58,11 +72,13 @@ class SexToolBar(QToolBar):
                 new_frame_object.setPosition(sd.api.sdbasetypes.float2(-sexparser.grid_size * 8.8, -sexparser.grid_size * 0.5))
                 new_frame_object.setColor(sd.api.sdbasetypes.ColorRGBA(0.145, 0.145, 0.145, 1.0))
                 new_frame_object.setSize(sd.api.sdbasetypes.float2(sexparser.grid_size * 8, sexparser.grid_size * 20))
-                window.frame_object = new_frame_object
+                editor_tab.frame_object = new_frame_object
 
-            try:
-                user_data = json.loads(user_data_string.get())
-                src = user_data.get("expression", "")
-                window.ui.code_editor.setPlainText(src)
-            except ValueError as e:
-                pass
+            if user_data_string is not None:
+
+                try:
+                    user_data = json.loads(user_data_string.get())
+                    src = user_data.get("expression", "")
+                    editor_tab.set_source(src)
+                except ValueError as e:
+                    pass

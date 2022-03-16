@@ -3,26 +3,26 @@
 ################################################################################
 ## Form generated from reading UI file 'sexeditor.ui'
 ##
-## Created by: Qt User Interface Compiler version 5.14.1
+## Created by: Qt User Interface Compiler version 5.15.0
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
 
-from PySide2.QtCore import (QCoreApplication, QMetaObject, QObject, QPoint,
-    QRect, QSize, QUrl, Qt)
+from PySide2.QtCore import (QCoreApplication, QDate, QDateTime, QMetaObject,
+    QObject, QPoint, QRect, QSize, QTime, QUrl, Qt)
 from PySide2.QtGui import (QBrush, QColor, QConicalGradient, QCursor, QFont,
-    QFontDatabase, QIcon, QLinearGradient, QPalette, QPainter, QPixmap,
-    QRadialGradient)
+    QFontDatabase, QIcon, QKeySequence, QLinearGradient, QPalette, QPainter,
+    QPixmap, QRadialGradient)
 from PySide2.QtWidgets import *
-
-from .codeeditor import CodeEditor
 
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
-        if MainWindow.objectName():
+        if not MainWindow.objectName():
             MainWindow.setObjectName(u"MainWindow")
         MainWindow.resize(1345, 1429)
+        self.actionCompile = QAction(MainWindow)
+        self.actionCompile.setObjectName(u"actionCompile")
         self.centralwidget = QWidget(MainWindow)
         self.centralwidget.setObjectName(u"centralwidget")
         self.gridLayout = QGridLayout(self.centralwidget)
@@ -39,54 +39,41 @@ class Ui_MainWindow(object):
         self.tabs.setTabShape(QTabWidget.Rounded)
         self.tabs.setIconSize(QSize(16, 16))
         self.tabs.setElideMode(Qt.ElideNone)
-        self.editor_tab = QWidget()
-        self.editor_tab.setObjectName(u"editor_tab")
-        self.gridLayout_2 = QGridLayout(self.editor_tab)
-        self.gridLayout_2.setObjectName(u"gridLayout_2")
-        self.gridLayout_2.setContentsMargins(0, 6, 0, 0)
-        self.code_editor = CodeEditor(self.editor_tab)
-        self.code_editor.setObjectName(u"code_editor")
-
-        self.gridLayout_2.addWidget(self.code_editor, 1, 0, 1, 1)
-
-        self.tabs.addTab(self.editor_tab, "")
-        self.render_tab = QWidget()
-        self.render_tab.setObjectName(u"render_tab")
-        self.gridLayout_3 = QGridLayout(self.render_tab)
-        self.gridLayout_3.setObjectName(u"gridLayout_3")
-        self.gridLayout_3.setContentsMargins(0, 6, 0, 0)
-        self.render_view = CodeEditor(self.render_tab)
-        self.render_view.setObjectName(u"render_view")
-        self.render_view.setReadOnly(True)
-
-        self.gridLayout_3.addWidget(self.render_view, 0, 0, 1, 1)
-
-        self.tabs.addTab(self.render_tab, "")
+        self.tabs.setTabsClosable(True)
+        self.tabs.setMovable(True)
 
         self.verticalLayout.addWidget(self.tabs)
 
-        self.compile = QPushButton(self.centralwidget)
-        self.compile.setObjectName(u"compile")
-        font1 = QFont()
-        font1.setPointSize(14)
-        self.compile.setFont(font1)
-
-        self.verticalLayout.addWidget(self.compile)
-
-        self.console_output = QPlainTextEdit(self.centralwidget)
-        self.console_output.setObjectName(u"console_output")
-
-        self.verticalLayout.addWidget(self.console_output)
-
-        self.verticalLayout.setStretch(0, 4)
 
         self.gridLayout.addLayout(self.verticalLayout, 0, 0, 1, 1)
 
         MainWindow.setCentralWidget(self.centralwidget)
+        self.dockWidget = QDockWidget(MainWindow)
+        self.dockWidget.setObjectName(u"dockWidget")
+        self.dockWidget.setFont(font)
+        self.dockWidget.setFeatures(QDockWidget.NoDockWidgetFeatures)
+        self.dockWidgetContents = QWidget()
+        self.dockWidgetContents.setObjectName(u"dockWidgetContents")
+        self.gridLayout_4 = QGridLayout(self.dockWidgetContents)
+        self.gridLayout_4.setObjectName(u"gridLayout_4")
+        self.console_output = QPlainTextEdit(self.dockWidgetContents)
+        self.console_output.setObjectName(u"console_output")
+
+        self.gridLayout_4.addWidget(self.console_output, 0, 0, 1, 1)
+
+        self.dockWidget.setWidget(self.dockWidgetContents)
+        MainWindow.addDockWidget(Qt.BottomDockWidgetArea, self.dockWidget)
+        self.toolBar = QToolBar(MainWindow)
+        self.toolBar.setObjectName(u"toolBar")
+        self.toolBar.setAutoFillBackground(False)
+        self.toolBar.setIconSize(QSize(32, 32))
+        MainWindow.addToolBar(Qt.TopToolBarArea, self.toolBar)
+
+        self.toolBar.addAction(self.actionCompile)
 
         self.retranslateUi(MainWindow)
 
-        self.tabs.setCurrentIndex(0)
+        self.tabs.setCurrentIndex(-1)
 
 
         QMetaObject.connectSlotsByName(MainWindow)
@@ -94,8 +81,11 @@ class Ui_MainWindow(object):
 
     def retranslateUi(self, MainWindow):
         MainWindow.setWindowTitle(QCoreApplication.translate("MainWindow", u"MainWindow", None))
-        self.tabs.setTabText(self.tabs.indexOf(self.editor_tab), QCoreApplication.translate("MainWindow", u"  Code Editor  ", None))
-        self.tabs.setTabText(self.tabs.indexOf(self.render_tab), QCoreApplication.translate("MainWindow", u"  View Generated Code  ", None))
-        self.compile.setText(QCoreApplication.translate("MainWindow", u"COMPILE", None))
+        self.actionCompile.setText(QCoreApplication.translate("MainWindow", u"Compile", None))
+#if QT_CONFIG(tooltip)
+        self.actionCompile.setToolTip(QCoreApplication.translate("MainWindow", u"Compile To Graph", None))
+#endif // QT_CONFIG(tooltip)
+        self.dockWidget.setWindowTitle(QCoreApplication.translate("MainWindow", u"    CONSOLE", None))
+        self.toolBar.setWindowTitle(QCoreApplication.translate("MainWindow", u"toolBar", None))
     # retranslateUi
 

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import ast
-import imp
 import re
 import os
 
