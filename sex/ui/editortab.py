@@ -78,6 +78,7 @@ class EditorTab(QWidget):
         self.graph = graph
 
         layout = QGridLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
         code_editor = CodeEditor()
         settings = main_window.plugin_settings
         self.plugin_settings = settings
