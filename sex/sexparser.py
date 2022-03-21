@@ -1103,7 +1103,6 @@ class NodeCreator:
             self._error(f"{function_name}() takes {len(input_names)} arguments ({len(operator.args)} given)", operator)
 
         for arg, input_name in zip(operator.args, input_names):
-            print(input_name)
             input_node = self.parse_operator(arg)
             input_node.newPropertyConnectionFromId(output_id, node, input_name)
 

@@ -363,7 +363,6 @@ class EditorTab(QWidget):
                                         need_delete = True
                                     else:
                                         inp_type = type(sd_type_map[inputs[ni_name][1]])
-                                        print(f"type: {inp_type}, ni_type: {ni.getType()}")                                        
                                         if not isinstance(ni.getType(), inp_type):
                                             need_delete = True
                                         else:
