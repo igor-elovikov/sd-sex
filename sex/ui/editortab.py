@@ -5,13 +5,10 @@ import ast
 import json
 import traceback
 import jinja2
-from time import gmtime, strftime
 
-from PySide2.QtGui import QFont
-from PySide2.QtWidgets import QMainWindow, QApplication, QGridLayout, QWidget
+from PySide2.QtWidgets import QGridLayout, QWidget
 
 import sd.api
-import ui.sexeditor as sexeditor
 import sexsyntax
 import sexparser
 import sdutils as sdu
@@ -22,9 +19,9 @@ from astutils import SexAstTransfomer
 from sd.api.sdproperty import SDPropertyCategory
 from sexparser import NODE_PROPERTY_DECORATOR, FXMAP_PROPERTY_DECORATOR, PIXEL_PROCESSOR_DECORATOR, VALUE_PROCESSOR_DECORATOR
 import sex
-from sex.settings import PluginSettings
 
 from .codeeditor import CodeEditor
+from settings import ExpressionType
 
 sd_type_map = {
     "float": sd.api.SDTypeFloat.sNew(),
@@ -37,6 +34,17 @@ sd_type_map = {
     "int4": sd.api.SDTypeInt4.sNew(),
 }
 
+
+system_inputs = {
+    "$pos": ("__sys_pos", "float2"),
+    "$size": ("__sys_size", "float2"),
+    "$sizelog2": ("__sys_sizelog2", "float2"),
+    "$tiling": ("__sys_tiling", "int"),
+    "$time": ("__sys_time", "float"),
+    "$depth": ("__sys_depth", "float"),
+    "$depthpow2": ("__sys_depthpow2", "float"),
+    "$number": ("__sys_number", "float")
+}
         
 class FunctionDecorator:
     def __init__(self) -> None:
@@ -71,11 +79,16 @@ def parse_decorators(decorator_list: list[ast.AST]) -> dict[str, FunctionDecorat
 
 class EditorTab(QWidget):
 
-    def __init__(self, main_window, graph: sd.api.SDGraph = None, parent = None):
+    def __init__(self, main_window, graph: sd.api.SDGraph = None, expr_type: ExpressionType = ExpressionType.FUNCTION_GRAPH, parent = None):
         super().__init__(parent)
 
         self.main_window = main_window
         self.graph = graph
+        self.package: sd.api.SDPackage = graph.getPackage()
+        self.expr_type: ExpressionType = expr_type
+
+        sex.parser.import_current_graph_functions(app)
+        
 
         layout = QGridLayout()
         layout.setContentsMargins(0, 0, 0, 0)
@@ -150,13 +163,27 @@ class EditorTab(QWidget):
         return list(result)
 
     def save_source(self):
-        user_data = {"expression": self.source_code}
-        user_data_property: sd.api.SDProperty = self.graph.getPropertyFromId("userdata", SDPropertyCategory.Annotation)
-        if user_data_property is not None:
-            self.graph.setPropertyValue(user_data_property, sdu.sd_value(json.dumps(user_data)))
 
-        if self.frame_object is not None:
-            self.frame_object.setDescription(self.source_code)
+        if self.expr_type is ExpressionType.FUNCTION_GRAPH:
+
+            user_data = {"expression": self.source_code}
+            user_data_property: sd.api.SDProperty = self.graph.getPropertyFromId("userdata", SDPropertyCategory.Annotation)
+            if user_data_property is not None:
+                self.graph.setPropertyValue(user_data_property, sdu.sd_value(json.dumps(user_data)))
+
+            if self.frame_object is not None:
+                self.frame_object.setDescription(self.source_code)
+
+        elif self.expr_type is ExpressionType.PACKAGE:
+
+            pkg: sd.api.SDPackage = self.graph.getPackage()
+            pkg_metada: sd.api.SDMetadataDict = pkg.getMetadataDict()
+            pkg_metada.setPropertyValueFromId("expression", sdu.sd_value(self.source_code))
+
+        elif self.expr_type is ExpressionType.COMPOSITE_GRAPH:
+
+            graph_metadata: sd.api.SDMetadataDict = self.graph.getMetadataDict()
+            graph_metadata.setPropertyValueFromId("expression", sdu.sd_value(self.source_code))
 
     def indent_fix(self, src: str) -> str:
         lines = src.splitlines()
@@ -176,9 +203,9 @@ class EditorTab(QWidget):
         return "\n".join(lines)
 
 
-    def parse_expression_tree(self, ast_tree, inputs: dict = None):
+    def parse_expression_tree(self, ast_tree, inputs: dict = None, inputs_graph: sd.api.SDGraph = None):
         try:
-            sex.parser.parse_tree(ast_tree, inputs)
+            sex.parser.parse_tree(ast_tree, inputs, inputs_graph)
         except sexparser.ParserError as err:
             self.console_message(str(err))
         except Exception as err:
@@ -216,6 +243,9 @@ class EditorTab(QWidget):
         self.source_code = src
         self.save_source()
 
+        for sys_var in system_inputs:
+            src = src.replace(sys_var, system_inputs[sys_var][0])
+
         sex.parser.main_window = self
 
         try:
@@ -241,6 +271,8 @@ class EditorTab(QWidget):
 
                 function_name = node.name
 
+                self.console_message(f"Compiling function [{function_name}]")
+
                 
                 function_graph: sd.api.SDSBSFunctionGraph = None
                 inputs_node: sd.api.SDNode = None
@@ -251,7 +283,10 @@ class EditorTab(QWidget):
 
                 if PIXEL_PROCESSOR_DECORATOR in decorators:
                     decorator = decorators[PIXEL_PROCESSOR_DECORATOR]
-                    graph = self.get_package_compgraph(resources, decorator.args["graph"])
+                    if self.expr_type is ExpressionType.COMPOSITE_GRAPH:
+                        graph = self.graph
+                    else:
+                        graph = self.get_package_compgraph(resources, decorator.args["graph"])
                     pp_node = sdu.get_graph_node(graph, uid=decorator.args["uid"])
                     prop = sdu.get_node_input(pp_node, "perpixel")
                     function_graph = pp_node.newPropertyGraph(prop, sdu.function_graph_class)
@@ -260,7 +295,11 @@ class EditorTab(QWidget):
 
                 if VALUE_PROCESSOR_DECORATOR in decorators:
                     decorator = decorators[VALUE_PROCESSOR_DECORATOR]
-                    graph = self.get_package_compgraph(resources, decorator.args["graph"])
+                    if self.expr_type is ExpressionType.COMPOSITE_GRAPH:
+                        graph = self.graph
+                    else:
+                        graph = self.get_package_compgraph(resources, decorator.args["graph"])
+
                     vp_node = sdu.get_graph_node(graph, uid=decorator.args["uid"])
                     prop = sdu.get_node_input(vp_node, "function")
                     function_graph = vp_node.newPropertyGraph(prop, sdu.function_graph_class)
@@ -269,7 +308,10 @@ class EditorTab(QWidget):
 
                 if NODE_PROPERTY_DECORATOR in decorators:
                     decorator = decorators[NODE_PROPERTY_DECORATOR]
-                    graph = self.get_package_compgraph(resources, decorator.args["graph"])
+                    if self.expr_type is ExpressionType.COMPOSITE_GRAPH:
+                        graph = self.graph
+                    else:
+                        graph = self.get_package_compgraph(resources, decorator.args["graph"])
                     comp_node = sdu.get_graph_node(graph, uid=decorator.args["uid"])
 
                     prop: sd.api.SDProperty = None
@@ -304,19 +346,43 @@ class EditorTab(QWidget):
                         input_name = f"__{function_name}_arg_{arg.arg}" if not use_node_inputs else f"#{arg.arg}"
                         inputs[input_name] = (arg.arg, arg.annotation.id)
 
+                    prop: sd.api.SDProperty = None
                     for inp in inputs:
                         if use_node_inputs:
                             node_inputs = inputs_node.getProperties(SDPropertyCategory.Input)
+                            
+                            need_to_create = True
+
                             for ni in node_inputs:
+
                                 if ni.getId().startswith("#"):
-                                    inputs_node.deleteProperty(ni)
+                                    need_delete = False
+                                    ni_name = ni.getId()
+
+                                    if ni_name not in inputs:
+                                        need_delete = True
+                                    else:
+                                        inp_type = type(sd_type_map[inputs[ni_name][1]])
+                                        print(f"type: {inp_type}, ni_type: {ni.getType()}")                                        
+                                        if not isinstance(ni.getType(), inp_type):
+                                            need_delete = True
+                                        else:
+                                            need_to_create = False
+                                            prop = ni
+
+                                    if need_delete:
+                                        inputs_node.deleteProperty(ni)
                         var_name, var_type = inputs[inp]
-                        prop: sd.api.SDProperty = inputs_node.newProperty(inp, sd_type_map[var_type], SDPropertyCategory.Input)
+                        if need_to_create:
+                            prop: sd.api.SDProperty = inputs_node.newProperty(inp, sd_type_map[var_type], SDPropertyCategory.Input)
                         if not use_node_inputs:
                             inputs_node.setPropertyAnnotationValueFromId(prop, "label", sd.api.SDValueString.sNew(var_name))
 
                 sex.parser.graph = function_graph
-                self.parse_expression_tree(node, inputs)
+                self.parse_expression_tree(node, {**inputs, **system_inputs}, graph)
+
+            if self.expr_type is not ExpressionType.FUNCTION_GRAPH:
+                return
 
             sex.parser.import_current_graph_functions(app)
 
@@ -327,7 +393,7 @@ class EditorTab(QWidget):
                 self.graph.deleteNode(graph_nodes.getItem(i))
 
             self.console_message("Create nodes...")
-            self.parse_expression_tree(tree)
+            self.parse_expression_tree(tree, system_inputs)
             if sex.parser.nodes_num <= self.plugin_settings["align_max_nodes"]:
                 self.console_message("Align nodes...")
                 sex.parser.align_nodes()

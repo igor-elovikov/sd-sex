@@ -1,5 +1,9 @@
+from __future__ import annotations
+
 import os
 import json
+
+from enum import Enum, auto
 
 from PySide2.QtGui import QIcon
        
@@ -7,6 +11,11 @@ def get_plugin_icon(filename: str) -> QIcon:
     path = os.path.dirname(os.path.abspath(__file__))
     path = os.path.join(path, "icons", filename)
     return QIcon(path)
+
+class ExpressionType(Enum):
+    FUNCTION_GRAPH = auto()
+    COMPOSITE_GRAPH = auto()
+    PACKAGE = auto()
 
 class PluginSettings:
     def __init__(self):

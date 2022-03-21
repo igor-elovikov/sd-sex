@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from time import gmtime, strftime
+from typing import Iterator
 
 from PySide2.QtGui import QFont
 from PySide2.QtWidgets import QMainWindow, QApplication, QToolButton
@@ -10,6 +11,8 @@ from ui.editortab import EditorTab
 from . import sexeditor
 from settings import PluginSettings
 from sdutils import qt_mgr
+
+from settings import ExpressionType
 
 import sd.api as sda
 
@@ -27,12 +30,19 @@ def get_main_window() -> MainWindow:
     else:
         return main_window
 
+style_sheet = """
+QToolBar {spacing: 1}
+QToolButton {padding: 4; margin: 2}
+"""
+
 class MainWindow(QMainWindow):
 
     def __init__(self, parent=None):
         super(MainWindow, self).__init__(parent)
         plugin_settings = PluginSettings()
         self.plugin_settings = plugin_settings
+
+        self.setStyleSheet(style_sheet)
 
         self.ui = sexeditor.Ui_MainWindow()
         self.ui.setupUi(self)
@@ -43,6 +53,8 @@ class MainWindow(QMainWindow):
 
         self.ui.actionCompile.setIcon(get_plugin_icon("build.png"))
         self.ui.actionCompile.triggered.connect(self.on_compile)
+
+        self.ui.actionSave.setIcon(get_plugin_icon("save.png"))
 
         font = QFont(self.plugin_settings["font"])
         font.setStyleHint(QFont.Monospace)
@@ -84,19 +96,18 @@ class MainWindow(QMainWindow):
     def add_editor_tab(self, tab: EditorTab, title: str):
         self.ui.tabs.addTab(tab, title)
 
-    def find_graph_tab(self, graph: sda.SDGraph) -> EditorTab:
+    def editor_tabs(self) -> Iterator[EditorTab]:
+        return (self.ui.tabs.widget(i) for i in range(self.ui.tabs.count()))
 
+    def find_graph_tab(self, graph: sda.SDGraph) -> EditorTab:
         graph_url = graph.getUrl()
         if not graph_url:
             return None
+        return next((t for t in self.editor_tabs() if t.expr_type is not ExpressionType.PACKAGE and t.graph.getUrl() == graph_url), None)
 
-        for i in range(self.ui.tabs.count()):
-            tab: EditorTab = self.ui.tabs.widget(i)
-            if tab.graph.getUrl() == graph_url:
-                return tab
-
-        return None
-
+    def find_package_tab(self, pkg: sda.SDPackage) -> sda.SDGraph:
+        pkg_path = pkg.getFilePath()
+        return next((t for t in self.editor_tabs() if t.expr_type is ExpressionType.PACKAGE and t.package.getFilePath() == pkg_path), None)
 
 
     def on_compile(self):

@@ -3,7 +3,7 @@
 .DS_Store
 .DS_Store?
 ehthumbs.db
-Icon?
+Icon? ![iI]con[_a-zA-Z0-9]
 Thumbs.db
 
 # Byte-compiled / optimized / DLL files
@@ -151,3 +151,4 @@ settings.json
 makepackage.py
 .sdpackageignore
 pluginInfo.json
+psd/

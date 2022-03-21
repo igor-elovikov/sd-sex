@@ -644,6 +644,21 @@ class NodeCreator:
             functions_package = package_mgr.loadUserPackage(package_path)
 
         self.imported_functions.update(self.get_package_functions(functions_package, to_lower_case=True))
+
+    def declare_inputs_from_graph(self, inputs_graph: sd.api.SDGraph):
+        inputs = inputs_graph.getProperties(sd.api.sdproperty.SDPropertyCategory.Input)
+
+        prop: sd.api.SDProperty
+        for prop in inputs:
+            prop_type = prop.getType()
+            prop_id = prop.getId()
+
+            if type(prop_type) in sd_types_node_map and prop_id[0] != "$":
+                input_node = self.create_graph_node(sd_types_node_map[type(prop_type)])
+                input_node.setInputPropertyValueFromId("__constant__", sd.api.SDValueString.sNew(prop_id))
+                self.var_scope[prop_id] = input_node
+                self.inputs_vars.append(prop_id)
+
        
 
     def declare_inputs(self, graph_id: str):
@@ -661,18 +676,7 @@ class NodeCreator:
         if inputs_graph is None:
             return False
         
-        inputs = inputs_graph.getProperties(sd.api.sdproperty.SDPropertyCategory.Input)
-
-        prop: sd.api.SDProperty
-        for prop in inputs:
-            prop_type = prop.getType()
-            prop_id = prop.getId()
-
-            if type(prop_type) in sd_types_node_map and prop_id[0] != "$":
-                input_node = self.create_graph_node(sd_types_node_map[type(prop_type)])
-                input_node.setInputPropertyValueFromId("__constant__", sd.api.SDValueString.sNew(prop_id))
-                self.var_scope[prop_id] = input_node
-                self.inputs_vars.append(prop_id)
+        self.declare_inputs_from_graph(inputs_graph)
 
         return True
 
@@ -1283,10 +1287,13 @@ class NodeCreator:
 
 
     
-    def parse_tree(self, expr_tree: ast.AST, inputs: dict = None):
+    def parse_tree(self, expr_tree: ast.AST, inputs: dict = None, inputs_graph: sd.api.SDGraph = None):
         self._reset()
 
         expressions = expr_tree.body
+
+        if inputs is not None:
+            self.inputs_vars += [inputs[input_name][0] for input_name in inputs]
 
         if inputs is not None and inputs:
             for inp in inputs:
@@ -1295,6 +1302,9 @@ class NodeCreator:
                 input_node = self.create_graph_node(input_node_definition)
                 input_node.setInputPropertyValueFromId("__constant__", sd.api.SDValueString.sNew(inp))
                 self.var_scope[var_name] = input_node
+
+        if inputs_graph is not None:
+            self.declare_inputs_from_graph(inputs_graph)
 
         for expr in expressions:
             if isinstance(expr, ast.FunctionDef):
@@ -1349,7 +1359,7 @@ class NodeCreator:
         output_nodes = self.graph.getOutputNodes()
 
         if output_nodes.getSize() < 1:
-            self._error(f"No {output_variable_name} provided or output type mismatch", expr.value)
+            self._error(f"No return statement or {output_variable_name} provided (or output type mismatch)", expr.value)
 
         output_node: sd.api.SDNode = output_nodes.getItem(0)
 

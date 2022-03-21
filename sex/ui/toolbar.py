@@ -1,8 +1,10 @@
 import json
+import os
 
-from PySide2.QtWidgets import QToolBar
+from PySide2.QtWidgets import QToolBar, QAction
 
 import sd.api
+from settings import ExpressionType
 import sexparser
 from sdutils import app, qt_mgr, ui_mgr
 from ui.window import get_main_window
@@ -11,7 +13,7 @@ from ui.editortab import EditorTab
 
 class SexToolBar(QToolBar):
     def __init__(self, graph_view_id, qt_ui_mgr, parser):
-        super(SexToolBar, self).__init__(parent=qt_ui_mgr.getMainWindow())
+        super().__init__(parent=qt_ui_mgr.getMainWindow())
 
         # Save the graphViewID and uiMgr for later use.
         self.__graph_view_id = graph_view_id
@@ -19,16 +21,96 @@ class SexToolBar(QToolBar):
         self.parser = parser
 
         # Add actions to our toolbar.
-        act = self.addAction("Expression")
+        act = self.addAction("Graph Expression")
         act.setToolTip("Open expression editor")
-        act.triggered.connect(self.open_sex_window)
+        act.triggered.connect(self.open_graph_expression_editor)
 
-    def open_sex_window(self):
+        pkg_action: QAction = self.addAction("Package Expression")
+        pkg_action.setToolTip("Open Package expression")
+        pkg_action.triggered.connect(self.open_package_expression_editor)
+
+    def prepare_editor(self):
         self.parser.import_functions("functions.sbs", app)
         self.parser.import_current_graph_functions(app)
 
-        graph: sd.api.SDGraph = ui_mgr.getCurrentGraph()
+    def open_package_expression_editor(self):
+        self.prepare_editor()
 
+        graph: sd.api.SDGraph = ui_mgr.getCurrentGraph()
+        window = get_main_window()
+        pkg: sd.api.SDPackage = graph.getPackage()
+
+        
+        package_tab = window.find_package_tab(pkg)
+        if package_tab is not None:
+            window.ui.tabs.setCurrentWidget(package_tab)
+            return
+
+        editor_tab = EditorTab(window, graph, ExpressionType.PACKAGE)
+
+        pkg_path = pkg.getFilePath()
+        pkg_name = "Unsaved Package"
+        if pkg_path:
+            pkg_name = os.path.splitext(os.path.basename(pkg_path))[0]
+
+        
+        window.add_editor_tab(editor_tab, pkg_name)
+        window.ui.tabs.setCurrentWidget(editor_tab)
+
+        try:
+            mdata: sd.api.SDMetadataDict = pkg.getMetadataDict()
+            src_value = mdata.getPropertyValueFromId("expression")
+            if src_value:
+                editor_tab.set_source(src_value.get())
+        except sd.api.APIException:
+            pass
+
+    def open_graph_expression_editor(self):
+        graph = ui_mgr.getCurrentGraph()
+
+        if isinstance(graph, sd.api.SDSBSCompGraph):
+            self.open_compgraph_expression_editor()
+
+        elif isinstance(graph, sd.api.SDSBSFunctionGraph):
+            self.open_funcgraph_expression_editor()
+
+
+    def open_compgraph_expression_editor(self):
+        self.prepare_editor()
+
+        graph: sd.api.SDGraph = ui_mgr.getCurrentGraph()
+        window = get_main_window()
+
+        graph_tab = window.find_graph_tab(graph)
+        if graph_tab is not None:
+            window.ui.tabs.setCurrentWidget(graph_tab)
+            return
+
+        editor_tab = window.find_graph_tab(graph)
+        if editor_tab is not None:
+            window.ui.tabs.setCurrentWidget(editor_tab)
+
+        tab_title = graph.getIdentifier()
+
+        editor_tab = EditorTab(window, graph, ExpressionType.COMPOSITE_GRAPH)
+        editor_tab.show()
+        window.add_editor_tab(editor_tab, tab_title)
+        window.ui.tabs.setCurrentWidget(editor_tab)
+
+        mdata: sd.api.SDMetadataDict = graph.getMetadataDict()
+
+        try:
+            src_value = mdata.getPropertyValueFromId("expression")
+            if src_value:
+                editor_tab.set_source(src_value.get())
+        except sd.api.APIException:
+            pass
+
+
+    def open_funcgraph_expression_editor(self):
+        self.prepare_editor()
+
+        graph: sd.api.SDGraph = ui_mgr.getCurrentGraph()
         window = get_main_window()
 
         graph_tab = window.find_graph_tab(graph)

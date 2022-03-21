@@ -5,7 +5,6 @@ import sys
 
 sys.path.append(os.path.dirname(__file__))
 
-from settings import get_plugin_icon
 from ui.toolbar import SexToolBar
 
 from functools import partial
@@ -16,6 +15,8 @@ import sexparser
 from sdutils import qt_mgr
 from sd.api.qtforpythonuimgrwrapper import QtForPythonUIMgrWrapper
 
+from settings import get_plugin_icon
+
 parser = sexparser.NodeCreator()
 
 def onNewGraphViewCreated(graph_view_id, qt_ui_mgr: QtForPythonUIMgrWrapper):
@@ -25,7 +26,7 @@ def onNewGraphViewCreated(graph_view_id, qt_ui_mgr: QtForPythonUIMgrWrapper):
     # Add our toolbar to the graph widget.
     created_graph = qt_ui_mgr.getGraphFromGraphViewID(graph_view_id)
 
-    if isinstance(created_graph, sd.api.SDSBSFunctionGraph):
+    if isinstance(created_graph, sd.api.SDSBSFunctionGraph) or isinstance(created_graph, sd.api.SDSBSCompGraph):
         qt_ui_mgr.addToolbarToGraphView(
             graph_view_id,
             toolbar,

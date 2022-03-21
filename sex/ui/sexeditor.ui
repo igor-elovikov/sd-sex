@@ -92,8 +92,8 @@
    </property>
    <property name="iconSize">
     <size>
-     <width>32</width>
-     <height>32</height>
+     <width>24</width>
+     <height>24</height>
     </size>
    </property>
    <attribute name="toolBarArea">
@@ -103,6 +103,7 @@
     <bool>false</bool>
    </attribute>
    <addaction name="actionCompile"/>
+   <addaction name="actionSave"/>
   </widget>
   <action name="actionCompile">
    <property name="text">
@@ -110,6 +111,14 @@
    </property>
    <property name="toolTip">
     <string>Compile To Graph</string>
+   </property>
+  </action>
+  <action name="actionSave">
+   <property name="text">
+    <string>Save</string>
+   </property>
+   <property name="toolTip">
+    <string>Save Code</string>
    </property>
   </action>
  </widget>
