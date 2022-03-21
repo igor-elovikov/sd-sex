@@ -196,6 +196,42 @@ def sd_value(value: Any) -> Any:
 def current_graph() -> CompGraph:
     return CompGraph(ui_mgr.getCurrentGraph())
 
+def current_package() -> sd.api.SDPackage:
+    graph: sd.api.SDGraph = ui_mgr.getCurrentGraph()
+    if graph is not None:
+        return graph.getPackage()
+    return None
+
+def create_package_folders(pkg: sd.api.SDPackage, path: str) -> sd.api.SDResourceFolder:
+    package_folders: list[sd.api.SDResourceFolder] = [r for r in pkg.getChildrenResources(True) if isinstance(r, sd.api.SDResourceFolder)]
+    package_folders = {f.getUrl()[7:].split("?")[0]: f for f in package_folders}
+
+    folders = path.split("/")
+    current_resource = pkg
+
+    if not folders:
+        return current_resource
+
+    current_folder = ""
+
+
+    for folder in folders:
+
+        current_folder = current_folder + "/" + folder
+        current_folder_path = current_folder.lstrip("/")
+
+        if current_folder_path not in package_folders:
+
+            folder_resource: sd.api.SDResourceFolder = sd.api.SDResourceFolder.sNew(current_resource)
+            folder_resource.setIdentifier(folder)
+
+            current_resource = folder_resource
+        else:
+            current_resource = package_folders[current_folder_path]
+
+    return current_resource
+
+
 def get_node_all_inputs(node: sd.api.SDNode) -> sd.api.SDArray:
     return node.getProperties(SDPropertyCategory.Input)
 

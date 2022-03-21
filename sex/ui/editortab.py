@@ -17,7 +17,7 @@ from sdutils import app
 
 from astutils import SexAstTransfomer
 from sd.api.sdproperty import SDPropertyCategory
-from sexparser import NODE_PROPERTY_DECORATOR, FXMAP_PROPERTY_DECORATOR, PIXEL_PROCESSOR_DECORATOR, VALUE_PROCESSOR_DECORATOR
+from sexparser import NODE_PROPERTY_DECORATOR, FXMAP_PROPERTY_DECORATOR, PIXEL_PROCESSOR_DECORATOR, VALUE_PROCESSOR_DECORATOR, PATH_DECORATOR
 import sex
 
 from .codeeditor import CodeEditor
@@ -118,7 +118,8 @@ class EditorTab(QWidget):
                              + ["range"])
 
         builtin_types = ([*sexparser.constants_map] + [*sexparser.get_variable_map] 
-            + [*sexparser.casts_map] + [PIXEL_PROCESSOR_DECORATOR, VALUE_PROCESSOR_DECORATOR, NODE_PROPERTY_DECORATOR, FXMAP_PROPERTY_DECORATOR])
+            + [*sexparser.casts_map] 
+            + [PIXEL_PROCESSOR_DECORATOR, VALUE_PROCESSOR_DECORATOR, NODE_PROPERTY_DECORATOR, FXMAP_PROPERTY_DECORATOR, PATH_DECORATOR])
 
         self.highlighter.setup_rules(builtin_functions, builtin_types)
 
@@ -280,6 +281,11 @@ class EditorTab(QWidget):
                 decorators = parse_decorators(node.decorator_list)
 
                 use_node_inputs = False
+                graph: sd.api.SDGraph = None
+
+                if PATH_DECORATOR in decorators:
+                    decorator = decorators[PATH_DECORATOR]
+                    current_package = sdu.create_package_folders(current_package, decorator.args["path"])
 
                 if PIXEL_PROCESSOR_DECORATOR in decorators:
                     decorator = decorators[PIXEL_PROCESSOR_DECORATOR]
@@ -347,11 +353,10 @@ class EditorTab(QWidget):
                         inputs[input_name] = (arg.arg, arg.annotation.id)
 
                     prop: sd.api.SDProperty = None
+                    need_to_create = True
                     for inp in inputs:
                         if use_node_inputs:
                             node_inputs = inputs_node.getProperties(SDPropertyCategory.Input)
-                            
-                            need_to_create = True
 
                             for ni in node_inputs:
 

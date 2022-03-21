@@ -1,7 +1,7 @@
 import json
 import os
 
-from PySide2.QtWidgets import QToolBar, QAction
+from PySide2.QtWidgets import QToolBar, QAction, QLabel
 
 import sd.api
 from settings import ExpressionType
@@ -11,6 +11,10 @@ from ui.window import get_main_window
 
 from ui.editortab import EditorTab
 
+style_sheet = """
+QToolButton {color: lightyellow; font: bold}
+"""
+
 class SexToolBar(QToolBar):
     def __init__(self, graph_view_id, qt_ui_mgr, parser):
         super().__init__(parent=qt_ui_mgr.getMainWindow())
@@ -19,14 +23,17 @@ class SexToolBar(QToolBar):
         self.__graph_view_id = graph_view_id
         self.__qt_ui_mgr = qt_ui_mgr
         self.parser = parser
+        self.setStyleSheet(style_sheet)
+
+        self.addWidget(QLabel("Expressions:"))
 
         # Add actions to our toolbar.
-        act = self.addAction("Graph Expression")
-        act.setToolTip("Open expression editor")
+        act = self.addAction("Graph")
+        act.setToolTip("Open Graph Expression Editor")
         act.triggered.connect(self.open_graph_expression_editor)
 
-        pkg_action: QAction = self.addAction("Package Expression")
-        pkg_action.setToolTip("Open Package expression")
+        pkg_action: QAction = self.addAction("Package")
+        pkg_action.setToolTip("Open Package Expression Editor")
         pkg_action.triggered.connect(self.open_package_expression_editor)
 
     def prepare_editor(self):

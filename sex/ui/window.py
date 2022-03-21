@@ -4,19 +4,16 @@ from time import gmtime, strftime
 from typing import Iterator
 
 from PySide2.QtGui import QFont
-from PySide2.QtWidgets import QMainWindow, QApplication, QToolButton
+from PySide2.QtWidgets import QMainWindow, QApplication
 
 from ui.editortab import EditorTab
 
 from . import sexeditor
-from settings import PluginSettings
+from settings import PluginSettings, get_plugin_icon, ExpressionType
 from sdutils import qt_mgr
-
-from settings import ExpressionType
 
 import sd.api as sda
 
-from settings import get_plugin_icon
 
 main_window: MainWindow = None
 
