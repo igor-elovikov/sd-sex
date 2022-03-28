@@ -3,7 +3,7 @@ import sys
 from PySide2.QtCore import Qt, Signal, QRect, QSize
 from PySide2.QtGui import QFont, QTextCursor, QTextOption, QColor, QPainter, QTextFormat
 from PySide2.QtWidgets import (QApplication, QCompleter, QHBoxLayout,
-                               QLineEdit, QPlainTextEdit, QWidget, QTextEdit)
+                               QLineEdit, QPlainTextEdit, QWidget, QTextEdit, QAbstractItemView)
 
 class QLineNumberArea(QWidget):
     def __init__(self, editor):
@@ -183,6 +183,7 @@ class CodeEditor(QPlainTextEdit):
                 return
 
         text_cursor = self.textCursor()
+
         process_event = True
         if event.key() == Qt.Key_Tab:
             text_cursor.insertText(" " * self.tab_spaces)
@@ -205,7 +206,7 @@ class CodeEditor(QPlainTextEdit):
             arrow_pressed = False
 
         completionPrefix = self.textUnderCursor()
-        #print(f"Completion prefix is {completionPrefix}")
+        #print(f"Completion prefix is [{completionPrefix}]")
 
         if len(completionPrefix) > 0 and not arrow_pressed:
             if not (completionPrefix in self.keywords and sum(k.startswith(completionPrefix) for k in self.keywords) == 1):
@@ -218,4 +219,7 @@ class CodeEditor(QPlainTextEdit):
                     + self.completer.popup().verticalScrollBar().sizeHint().width())
                 self.completer.complete(cr)
             elif self.completer.popup():
+                self.completer.popup().hide()
+
+        if not completionPrefix and self.completer.popup():
                 self.completer.popup().hide()
