@@ -278,7 +278,12 @@ class EditorTab(QWidget):
                     self.parser.import_package(package.name, package.asname)
 
             if isinstance(node, ast.ImportFrom):
-                self.parser.import_package(node.module, None, [f.name for f in node.names])
+                names = [f.name for f in node.names]
+                global_scope = False
+                if len(names) == 1 and names[0] == "*":
+                    names = None
+                    global_scope = True
+                self.parser.import_package(node.module, None, names, global_scope)
 
     def create_nodes(self):
         self.parser.clear_imports()

@@ -658,16 +658,16 @@ class NodeCreator:
     def import_current_package(self):
         self.import_package_from_resource(self.graph.getPackage())
 
-    def import_package(self, package_name: str, alias: str = None, from_list: list[str] = None):
+    def import_package(self, package_name: str, alias: str = None, from_list: list[str] = None, global_scope=False):
         package_path = self.get_package_path_from_alias(package_name)
         self.logger.info(f"Import functions from: {package_name}. path: {package_path}")
         functions_package: sd.api.SDPackage = sdu.load_package_from_path(package_path)
         namespace = package_name if alias is None else alias
-        self.import_package_from_resource(functions_package, namespace, from_list, package_name.startswith("sbs."))
+        self.import_package_from_resource(functions_package, namespace, from_list, package_name.startswith("sbs."), global_scope)
     
-    def import_package_from_resource(self, package: sd.api.SDPackage, namespace: str = None, from_list: list[str] = None, to_lower_case=False):
+    def import_package_from_resource(self, package: sd.api.SDPackage, namespace: str = None, from_list: list[str] = None, to_lower_case=False, global_scope=False):
         self.logger.info(f"Import functions from: {package} Path: {package.getFilePath()}")
-        namespace = None if from_list is not None else namespace
+        namespace = None if from_list is not None or global_scope else namespace
         if namespace is not None:
             for namespace_token in namespace.split("."):
                 if namespace_token not in self.keywords:
