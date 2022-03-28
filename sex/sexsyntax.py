@@ -35,6 +35,7 @@ STYLES = {
     'keyword': format(hl_colors['rose'], 'bold'),
     'operator': format(hl_colors['turq']),
     'function': format(hl_colors['blue']),
+    'builtin_function': format(hl_colors['turq'], 'bold'),
     'brace': format(hl_colors['white']),
     'string': format(hl_colors['yellow']),
     'string2': format(hl_colors['yellow']),
@@ -79,7 +80,7 @@ class SexHighlighter(QSyntaxHighlighter):
     def __init__(self, document):
         QSyntaxHighlighter.__init__(self, document)
     
-    def setup_rules(self, builtin_functions, builtin_types):
+    def setup_rules(self, functions, builtin_functions, builtin_types):
 
         rules = []
 
@@ -88,6 +89,9 @@ class SexHighlighter(QSyntaxHighlighter):
             for w in SexHighlighter.keywords]
 
         rules += [(r'\b%s\b' % w, 0, STYLES['function'])
+            for w in functions]
+
+        rules += [(r'\b%s\b' % w, 0, STYLES['builtin_function'])
             for w in builtin_functions]
 
         rules += [(r'\b%s\b' % w, 0, STYLES['builtin_constant'])

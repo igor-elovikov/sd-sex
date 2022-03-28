@@ -124,7 +124,6 @@ class EditorTab(QWidget):
 
         builtin_functions = ([*sexparser.function_node_map]
                              + [*sexparser.vectors_map]
-                             + [*self.parser.imported_functions]
                              + [*sexparser.samplers_map]
                              + ["range"])
 
@@ -132,7 +131,7 @@ class EditorTab(QWidget):
             + [*sexparser.casts_map] 
             + [PIXEL_PROCESSOR_DECORATOR, VALUE_PROCESSOR_DECORATOR, NODE_PROPERTY_DECORATOR, FXMAP_PROPERTY_DECORATOR, PATH_DECORATOR])
 
-        highlighter.setup_rules(builtin_functions, builtin_types)
+        highlighter.setup_rules([*self.parser.imported_functions], builtin_functions, builtin_types)
 
     def console_message(self, message):
         self.main_window.console_message(message)
