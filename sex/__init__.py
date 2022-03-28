@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import sys
+import logging
 
 sys.path.append(os.path.dirname(__file__))
 
@@ -11,17 +12,18 @@ from functools import partial
 
 import sd
 import sd.api
-import sexparser
-from sdutils import qt_mgr
+from sdutils import qt_mgr, ctx
 from sd.api.qtforpythonuimgrwrapper import QtForPythonUIMgrWrapper
 
 from settings import get_plugin_icon
 
-parser = sexparser.NodeCreator()
+logger = logging.getLogger("sd-sex")
+logger.handlers = [ctx.createRuntimeLogHandler()]
+logger.propagate = False
 
 def onNewGraphViewCreated(graph_view_id, qt_ui_mgr: QtForPythonUIMgrWrapper):
     # Create our toolbar.
-    toolbar = SexToolBar(graph_view_id, qt_ui_mgr, parser)
+    toolbar = SexToolBar(graph_view_id, qt_ui_mgr)
 
     # Add our toolbar to the graph widget.
     created_graph = qt_ui_mgr.getGraphFromGraphViewID(graph_view_id)

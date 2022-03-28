@@ -16,13 +16,12 @@ QToolButton {color: lightyellow; font: bold}
 """
 
 class SexToolBar(QToolBar):
-    def __init__(self, graph_view_id, qt_ui_mgr, parser):
+    def __init__(self, graph_view_id, qt_ui_mgr):
         super().__init__(parent=qt_ui_mgr.getMainWindow())
 
         # Save the graphViewID and uiMgr for later use.
         self.__graph_view_id = graph_view_id
         self.__qt_ui_mgr = qt_ui_mgr
-        self.parser = parser
         self.setStyleSheet(style_sheet)
 
         self.addWidget(QLabel("Expressions:"))
@@ -36,13 +35,7 @@ class SexToolBar(QToolBar):
         pkg_action.setToolTip("Open Package Expression Editor")
         pkg_action.triggered.connect(self.open_package_expression_editor)
 
-    def prepare_editor(self):
-        self.parser.import_functions("functions.sbs", app)
-        self.parser.import_current_graph_functions(app)
-
     def open_package_expression_editor(self):
-        self.prepare_editor()
-
         graph: sd.api.SDGraph = ui_mgr.getCurrentGraph()
         window = get_main_window()
         pkg: sd.api.SDPackage = graph.getPackage()
@@ -83,8 +76,6 @@ class SexToolBar(QToolBar):
 
 
     def open_compgraph_expression_editor(self):
-        self.prepare_editor()
-
         graph: sd.api.SDGraph = ui_mgr.getCurrentGraph()
         window = get_main_window()
 
@@ -115,8 +106,7 @@ class SexToolBar(QToolBar):
 
 
     def open_funcgraph_expression_editor(self):
-        self.prepare_editor()
-
+        
         graph: sd.api.SDGraph = ui_mgr.getCurrentGraph()
         window = get_main_window()
 

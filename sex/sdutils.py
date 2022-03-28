@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import itertools as it
 import ast
+import os
+
 from typing import Any, NamedTuple, Type
 
 import sd
@@ -20,6 +22,8 @@ app = ctx.getSDApplication()
 ui_mgr: sd.api.SDUIMgr = app.getUIMgr()
 pkg_mgr: sd.api.SDPackageMgr = app.getPackageMgr()
 qt_mgr = app.getQtForPythonUIMgr()
+
+resource_path =  app.getPath(sd.api.sdapplication.SDApplicationPath.DefaultResourcesDir)
 
 class SDType(Enum):
     FLOAT = auto()
@@ -214,7 +218,6 @@ def create_package_folders(pkg: sd.api.SDPackage, path: str) -> sd.api.SDResourc
 
     current_folder = ""
 
-
     for folder in folders:
 
         current_folder = current_folder + "/" + folder
@@ -230,6 +233,21 @@ def create_package_folders(pkg: sd.api.SDPackage, path: str) -> sd.api.SDResourc
             current_resource = package_folders[current_folder_path]
 
     return current_resource
+
+
+def load_package_from_path(path: str) -> sd.api.SDPackage:
+        norm_path = os.path.normpath(path)
+        pkg: sd.api.SDPackage
+
+        for pkg in pkg_mgr.getPackages():
+            if norm_path == os.path.normpath(pkg.getFilePath()):
+                return pkg
+        
+        for pkg in pkg_mgr.getUserPackages():
+            if norm_path == os.path.normpath(pkg.getFilePath()):
+                return pkg
+
+        return pkg_mgr.loadUserPackage(norm_path)
 
 
 def get_node_all_inputs(node: sd.api.SDNode) -> sd.api.SDArray:

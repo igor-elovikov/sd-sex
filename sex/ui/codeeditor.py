@@ -28,7 +28,6 @@ class CodeEditor(QPlainTextEdit):
         def changeCompletion(self, completion):
             if completion.find("(") != -1:
                 completion = completion[:completion.find("(")]
-                print(completion)
             #print("completion is " + str(completion))
             self.insertText.emit(completion)
 
@@ -122,7 +121,7 @@ class CodeEditor(QPlainTextEdit):
 
     def setCompleter(self, completer):
         if self.completer:
-            self.disconnect(self.completer, 0, self, 0)
+            self.disconnect(self.completer)
         if not completer:
             return
 

@@ -1,13 +1,20 @@
 from __future__ import annotations
 
 import ast
+from asyncio.log import logger
 import re
 import os
+import logging
 
 import sd
 import sd.api
 from sd.api.sdbasetypes import float2
 from sd.api.sdproperty import SDPropertyCategory
+import sdutils as sdu
+from sdutils import resource_path
+
+from astutils import get_node_name
+from sex.sdutils import current_package, pkg_mgr
 
 grid_size = 1.4 * sd.ui.graphgrid.GraphGrid.sGetFirstLevelSize()
 max_nodes_in_row = 20
@@ -545,6 +552,8 @@ def check_operator_types(op):
 
 class NodeCreator:
     def __init__(self, graph: sd.api.SDGraph=None):
+        self.logger = logging.getLogger("sd-sex")
+
         self.var_scope = {}
         self.var_declare_line = {}
         self.inputs_vars = []
@@ -570,6 +579,9 @@ class NodeCreator:
         self.nodes_num = 0
         self.align_queue = []
 
+        if graph is not None:
+            self.import_current_package()
+
     def _reset(self):
         self.node_pos_x = 0
         self.node_pos_y = 0
@@ -578,10 +590,17 @@ class NodeCreator:
         self.export_vars = []
         self.inputs_vars = []
 
+    def clear_imports(self):
+        for func in self.imported_functions:
+            if func in self.keywords:
+                self.keywords.remove(func)
+        self.imported_functions = {}
+
     def _error(self, message: str, operator: ast.Expr):
         raise ParserError(f"[line {operator.lineno}: col {operator.col_offset}] ERROR: {message}")
 
-    def get_package_functions(self, sd_package: sd.api.SDPackage, to_lower_case = False):
+    def get_package_functions(self, sd_package: sd.api.SDPackage, namespace=None, function_list=None, to_lower_case=False):
+
         functions = sd_package.getChildrenResources(True)
         sd_resource: sd.api.SDResource
 
@@ -601,50 +620,60 @@ class NodeCreator:
                 if func_name[0].isdigit():
                     func_name = "_" + func_name
 
+                if function_list is not None and func_name not in function_list:
+                    continue
+
                 props = sd_resource.getProperties(sd.api.sdproperty.SDPropertyCategory.Input)
                 props_list = []
 
                 if props.getSize() > 0:
                     props_list = [props.getItem(i).getId() for i in range(props.getSize())]
 
-                imported_functions[func_name] = (sd_resource, props_list)
+                full_func_name = f"{namespace}.{func_name}" if namespace is not None else func_name
+
+                imported_functions[full_func_name] = (sd_resource, props_list)
 
                 if not func_name in self.keywords:
                     self.keywords.append(func_name)
 
         return imported_functions
 
-    def import_current_graph_functions(self, sd_app: sd.api.SDApplication):
-        pkg_mgr = sd_app.getPackageMgr()
+    def get_package_path_from_alias(self, package_alias: str) -> str:
+        name_tokens = package_alias.split(".")
+        if not name_tokens:
+            return None
+        current_package: sd.api.SDPackage = self.graph.getPackage()
+        current_path = os.path.dirname(current_package.getFilePath())
 
-        self.keywords = [key for key in self.keywords if key not in self.current_graph_functions]
-
-        user_packages = pkg_mgr.getUserPackages()
-        self.current_graph_functions = []
-
-        package: sd.api.SDPackage
-        for package in user_packages:
-            package_functions = self.get_package_functions(package)
-            self.current_graph_functions.extend([*package_functions])
-            self.imported_functions.update(package_functions)
-
-    def import_functions(self, package_name: str, sd_app: sd.api.SDApplication):
-        package_mgr = sd_app.getPackageMgr()
-        loaded_packages = package_mgr.getPackages()
+        if len(name_tokens) == 1:
+            path = os.path.join(current_path, name_tokens[0] + ".sbs") 
+        else:
+            if name_tokens[0] == "sbs":
+                path = os.path.join(resource_path, "packages", *name_tokens[1:-1], name_tokens[-1] + ".sbs")
+            else:
+                path = os.path.join(current_path, *name_tokens[:-1], name_tokens[-1] + ".sbs")
         
-        functions_package: sd.api.SDPackage = None
-        for i in range(loaded_packages.getSize()):
-            package: sd.api.SDPackage = loaded_packages.getItem(i)
-            if package_name in package.getFilePath():
-                functions_package = package
+        return os.path.normpath(path)
 
-        
-        if functions_package is None:
-            resource_path = sd_app.getPath(sd.api.sdapplication.SDApplicationPath.DefaultResourcesDir)
-            package_path = os.path.join(resource_path, "packages", package_name)
-            functions_package = package_mgr.loadUserPackage(package_path)
+    def import_current_package(self):
+        self.import_package_from_resource(self.graph.getPackage())
 
-        self.imported_functions.update(self.get_package_functions(functions_package, to_lower_case=True))
+    def import_package(self, package_name: str, alias: str = None, from_list: list[str] = None):
+        package_path = self.get_package_path_from_alias(package_name)
+        self.logger.info(f"Import functions from: {package_name}. path: {package_path}")
+        functions_package: sd.api.SDPackage = sdu.load_package_from_path(package_path)
+        namespace = package_name if alias is None else alias
+        self.import_package_from_resource(functions_package, namespace, from_list, package_name.startswith("sbs."))
+    
+    def import_package_from_resource(self, package: sd.api.SDPackage, namespace: str = None, from_list: list[str] = None, to_lower_case=False):
+        self.logger.info(f"Import functions from: {package} Path: {package.getFilePath()}")
+        namespace = None if from_list is not None else namespace
+        if namespace is not None:
+            for namespace_token in namespace.split("."):
+                if namespace_token not in self.keywords:
+                    self.keywords.append(namespace_token)
+        self.imported_functions.update(self.get_package_functions(package, namespace, from_list, to_lower_case))
+
 
     def declare_inputs_from_graph(self, inputs_graph: sd.api.SDGraph):
         inputs = inputs_graph.getProperties(sd.api.sdproperty.SDPropertyCategory.Input)
@@ -659,8 +688,6 @@ class NodeCreator:
                 input_node.setInputPropertyValueFromId("__constant__", sd.api.SDValueString.sNew(prop_id))
                 self.var_scope[prop_id] = input_node
                 self.inputs_vars.append(prop_id)
-
-       
 
     def declare_inputs(self, graph_id: str):
         pkg: sd.api.SDPackage = self.graph.getPackage()
@@ -1110,11 +1137,12 @@ class NodeCreator:
         return node
 
     def parse_imported_function(self, operator: ast.Call) -> sd.api.SDNode:
-        sd_resource, inputs_list = self.imported_functions[operator.func.id]
+        func_name = get_node_name(operator.func)
+        sd_resource, inputs_list = self.imported_functions[func_name]
         node = self.create_graph_node_from_resource(sd_resource)
 
         if len(operator.args) != len(inputs_list):
-            self._error(f"{operator.func.id}() takes {len(inputs_list)} arguments ({len(operator.args)} given)", operator)
+            self._error(f"{func_name}() takes {len(inputs_list)} arguments ({len(operator.args)} given)", operator)
 
         for arg, input_name in zip(operator.args, inputs_list):
             input_node = self.parse_operator(arg)
@@ -1190,7 +1218,7 @@ class NodeCreator:
       
         if isinstance(operator, ast.Call):
             operator: ast.Call
-            function_name = operator.func.id
+            function_name = get_node_name(operator.func)
 
             if function_name in constants_map:
                 return self.parse_constant(operator)
@@ -1288,6 +1316,7 @@ class NodeCreator:
 
     
     def parse_tree(self, expr_tree: ast.AST, inputs: dict = None, inputs_graph: sd.api.SDGraph = None):
+        self.logger.info("Parsing AST tree")
         self._reset()
 
         expressions = expr_tree.body
@@ -1307,7 +1336,7 @@ class NodeCreator:
             self.declare_inputs_from_graph(inputs_graph)
 
         for expr in expressions:
-            if isinstance(expr, ast.FunctionDef):
+            if isinstance(expr, (ast.FunctionDef, ast.Import, ast.ImportFrom)):
                 continue
 
             if not isinstance(expr, ast.AugAssign):
@@ -1359,7 +1388,7 @@ class NodeCreator:
         output_nodes = self.graph.getOutputNodes()
 
         if output_nodes.getSize() < 1:
-            self._error(f"No return statement or {output_variable_name} provided (or output type mismatch)", expr.value)
+            self._error(f"No return statement or {output_variable_name} provided (or output type mismatch)", expr)
 
         output_node: sd.api.SDNode = output_nodes.getItem(0)
 
