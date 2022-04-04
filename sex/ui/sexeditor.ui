@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1104</width>
-    <height>1446</height>
+    <width>579</width>
+    <height>869</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -104,6 +104,7 @@
    </attribute>
    <addaction name="actionCompile"/>
    <addaction name="actionSave"/>
+   <addaction name="actionShowTemplate"/>
   </widget>
   <action name="actionCompile">
    <property name="text">
@@ -119,6 +120,17 @@
    </property>
    <property name="toolTip">
     <string>Save Code</string>
+   </property>
+  </action>
+  <action name="actionShowTemplate">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Show Template</string>
+   </property>
+   <property name="toolTip">
+    <string>Show expanded code</string>
    </property>
   </action>
  </widget>

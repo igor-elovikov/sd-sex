@@ -197,8 +197,8 @@ class SDValue:
 def sd_value(value: Any) -> Any:
     return SDValue(value).sd_value
 
-def current_graph() -> CompGraph:
-    return CompGraph(ui_mgr.getCurrentGraph())
+def current_graph() -> sd.api.SDGraph:
+    return ui_mgr.getCurrentGraph()
 
 def current_package() -> sd.api.SDPackage:
     graph: sd.api.SDGraph = ui_mgr.getCurrentGraph()

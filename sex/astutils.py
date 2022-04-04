@@ -21,6 +21,50 @@ def get_node_name(node: ast.Name | ast.Attribute) -> list[str]:
         names.reverse()
         return ".".join(names)
 
+def get_node_value(node: ast.Num | ast.Str) -> int | float | str:
+    if not isinstance(node, (ast.Num, ast.Str)):
+        return None
+
+    if isinstance(node, ast.Num):
+        return node.n
+    
+    return node.s
+
+class FunctionDecorator:
+    def __init__(self) -> None:
+        self.keyargs: dict = {}
+        self.args: list[Any] = []
+
+def parse_decorators(decorator_list: list[ast.AST]) -> dict[str, FunctionDecorator]:
+    result: dict[str, FunctionDecorator] = {}    
+
+    for decorator in decorator_list:
+
+        if isinstance(decorator, ast.Name):
+            result[decorator.id] = FunctionDecorator()
+            continue
+
+        if isinstance(decorator, ast.Call):
+            d = FunctionDecorator()
+            keyword: ast.keyword
+            for keyword in decorator.keywords:
+                key = keyword.arg
+                d.keyargs[key] = None
+
+                if isinstance(keyword.value, ast.Num):
+                    d.keyargs[key] = keyword.value.n
+
+                if isinstance(keyword.value, ast.Str):
+                    d.keyargs[key] = keyword.value.s
+
+            d.args = [get_node_value(arg) for arg in decorator.args]
+            d.args = [v for v in d.args if v is not None]
+           
+            result[decorator.func.id] = d
+            continue
+
+    return result
+
 class SexAstTransfomer(ast.NodeTransformer):
 
     def __init__(self) -> None:

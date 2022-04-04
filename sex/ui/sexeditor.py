@@ -20,11 +20,14 @@ class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         if not MainWindow.objectName():
             MainWindow.setObjectName(u"MainWindow")
-        MainWindow.resize(1104, 1446)
+        MainWindow.resize(579, 869)
         self.actionCompile = QAction(MainWindow)
         self.actionCompile.setObjectName(u"actionCompile")
         self.actionSave = QAction(MainWindow)
         self.actionSave.setObjectName(u"actionSave")
+        self.actionShowTemplate = QAction(MainWindow)
+        self.actionShowTemplate.setObjectName(u"actionShowTemplate")
+        self.actionShowTemplate.setCheckable(True)
         self.centralwidget = QWidget(MainWindow)
         self.centralwidget.setObjectName(u"centralwidget")
         self.gridLayout = QGridLayout(self.centralwidget)
@@ -74,6 +77,7 @@ class Ui_MainWindow(object):
 
         self.toolBar.addAction(self.actionCompile)
         self.toolBar.addAction(self.actionSave)
+        self.toolBar.addAction(self.actionShowTemplate)
 
         self.retranslateUi(MainWindow)
 
@@ -92,6 +96,10 @@ class Ui_MainWindow(object):
         self.actionSave.setText(QCoreApplication.translate("MainWindow", u"Save", None))
 #if QT_CONFIG(tooltip)
         self.actionSave.setToolTip(QCoreApplication.translate("MainWindow", u"Save Code", None))
+#endif // QT_CONFIG(tooltip)
+        self.actionShowTemplate.setText(QCoreApplication.translate("MainWindow", u"Show Template", None))
+#if QT_CONFIG(tooltip)
+        self.actionShowTemplate.setToolTip(QCoreApplication.translate("MainWindow", u"Show expanded code", None))
 #endif // QT_CONFIG(tooltip)
         self.dockWidget.setWindowTitle(QCoreApplication.translate("MainWindow", u"    CONSOLE", None))
         self.toolBar.setWindowTitle(QCoreApplication.translate("MainWindow", u"toolBar", None))

@@ -52,6 +52,10 @@ class MainWindow(QMainWindow):
         self.ui.actionCompile.triggered.connect(self.on_compile)
 
         self.ui.actionSave.setIcon(get_plugin_icon("save.png"))
+        self.ui.actionSave.triggered.connect(self.on_save_current)
+
+        self.ui.actionShowTemplate.setIcon(get_plugin_icon("template.png"))
+        self.ui.actionShowTemplate.triggered.connect(self.on_show_template)
 
         font = QFont(self.plugin_settings["font"])
         font.setStyleHint(QFont.Monospace)
@@ -105,6 +109,16 @@ class MainWindow(QMainWindow):
     def find_package_tab(self, pkg: sda.SDPackage) -> sda.SDGraph:
         pkg_path = pkg.getFilePath()
         return next((t for t in self.editor_tabs() if t.expr_type is ExpressionType.PACKAGE and t.package.getFilePath() == pkg_path), None)
+
+    def on_save_current(self):
+        current_tab: EditorTab = self.ui.tabs.currentWidget()
+        if current_tab is not None:
+            current_tab.save_source()
+
+    def on_show_template(self):
+        tab: EditorTab
+        for tab in self.editor_tabs():
+            tab.toggle_rendered_code(self.ui.actionShowTemplate.isChecked())
 
 
     def on_compile(self):

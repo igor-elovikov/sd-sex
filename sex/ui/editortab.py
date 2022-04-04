@@ -7,6 +7,7 @@ import logging
 import traceback
 import jinja2
 
+from typing import Any
 from PySide2.QtWidgets import QGridLayout, QWidget
 
 import sd.api
@@ -15,6 +16,7 @@ import sexparser
 import sdutils as sdu
 
 from sdutils import app
+from astutils import parse_decorators
 
 from astutils import SexAstTransfomer
 from sd.api.sdproperty import SDPropertyCategory
@@ -35,7 +37,6 @@ sd_type_map = {
     "int4": sd.api.SDTypeInt4.sNew(),
 }
 
-
 system_inputs = {
     "$pos": ("__sys_pos", "float2"),
     "$size": ("__sys_size", "float2"),
@@ -46,37 +47,6 @@ system_inputs = {
     "$depthpow2": ("__sys_depthpow2", "float"),
     "$number": ("__sys_number", "float")
 }
-        
-class FunctionDecorator:
-    def __init__(self) -> None:
-        self.args: dict = {}
-
-def parse_decorators(decorator_list: list[ast.AST]) -> dict[str, FunctionDecorator]:
-    result: dict[str, FunctionDecorator] = {}    
-
-    for decorator in decorator_list:
-
-        if isinstance(decorator, ast.Name):
-            result[decorator.id] = FunctionDecorator()
-            continue
-
-        if isinstance(decorator, ast.Call):
-            d = FunctionDecorator()
-            keyword: ast.keyword
-            for keyword in decorator.keywords:
-                key = keyword.arg
-                d.args[key] = None
-
-                if isinstance(keyword.value, ast.Num):
-                    d.args[key] = keyword.value.n
-
-                if isinstance(keyword.value, ast.Str):
-                    d.args[key] = keyword.value.s
-            
-            result[decorator.func.id] = d
-            continue
-
-    return result
 
 class EditorTab(QWidget):
 
@@ -85,6 +55,9 @@ class EditorTab(QWidget):
 
         self.logger = logging.getLogger("sd-sex")
         self.logger.setLevel(logging.INFO)
+
+        self.saved_cursor_position = None
+        self.show_rendered = False
 
         graph_id = graph.getIdentifier()
         self.graph_id = "Property Graph" if not graph_id else graph_id
@@ -125,10 +98,10 @@ class EditorTab(QWidget):
         builtin_functions = ([*sexparser.function_node_map]
                              + [*sexparser.vectors_map]
                              + [*sexparser.samplers_map]
-                             + ["range"])
+                             + ["range"]
+                             + [*sexparser.casts_map])
 
         builtin_types = ([*sexparser.constants_map] + [*sexparser.get_variable_map] 
-            + [*sexparser.casts_map] 
             + [PIXEL_PROCESSOR_DECORATOR, VALUE_PROCESSOR_DECORATOR, NODE_PROPERTY_DECORATOR, FXMAP_PROPERTY_DECORATOR, PATH_DECORATOR])
 
         highlighter.setup_rules([*self.parser.imported_functions], builtin_functions, builtin_types)
@@ -136,8 +109,24 @@ class EditorTab(QWidget):
     def console_message(self, message):
         self.main_window.console_message(message)
 
+    def toggle_rendered_code(self, show_rendered: bool):
+        self.show_rendered = show_rendered
+        if show_rendered:
+            self.saved_cursor_position = self.code_editor.textCursor().position()
+            self.source_code = self.code_editor.toPlainText()
+            self.code_editor.setReadOnly(True)
+            self.code_editor.setPlainText(self.get_rendered_code(self.source_code))
+        else:
+            self.code_editor.setReadOnly(False)
+            self.code_editor.setPlainText(self.source_code)
+            if self.saved_cursor_position is not None:
+                cursor = self.code_editor.textCursor()
+                cursor.setPosition(self.saved_cursor_position)
+                self.code_editor.setTextCursor(cursor)
+                
+
     def get_rendered_code(self, code):
-        package_file = self.graph.getPackage().getFilePath()
+        package_file = self.package.getFilePath()
         package_dir = os.path.dirname(package_file)
 
         jenv = jinja2.Environment(loader=jinja2.FileSystemLoader(package_dir))
@@ -165,7 +154,8 @@ class EditorTab(QWidget):
             self.console_message(str(e))
             return
         try:
-            stripped_src = self.indent_fix(src)
+            processed_src = self.process_system_inputs(src)
+            stripped_src = self.indent_fix(processed_src)
             ast_tree = ast.parse(stripped_src, mode="exec")
             self.tree = SexAstTransfomer().visit(ast_tree)
         except SyntaxError as err:
@@ -177,7 +167,7 @@ class EditorTab(QWidget):
     def get_package_inputs(self):
         result = set()
 
-        pkg = self.graph.getPackage()
+        pkg = self.package
         pkg_resources = pkg.getChildrenResources(True)
 
         res: sd.api.SDResource
@@ -195,6 +185,9 @@ class EditorTab(QWidget):
 
     def save_source(self):
 
+        if not self.show_rendered:
+            self.source_code = self.code_editor.toPlainText()
+
         if self.expr_type is ExpressionType.FUNCTION_GRAPH:
 
             user_data = {"expression": self.source_code}
@@ -207,7 +200,7 @@ class EditorTab(QWidget):
 
         elif self.expr_type is ExpressionType.PACKAGE:
 
-            pkg: sd.api.SDPackage = self.graph.getPackage()
+            pkg: sd.api.SDPackage = self.package
             pkg_metada: sd.api.SDMetadataDict = pkg.getMetadataDict()
             pkg_metada.setPropertyValueFromId("expression", sdu.sd_value(self.source_code))
 
@@ -285,28 +278,38 @@ class EditorTab(QWidget):
                     global_scope = True
                 self.parser.import_package(node.module, None, names, global_scope)
 
+    def process_system_inputs(self, src):
+        for sys_var in system_inputs:
+            src = src.replace(sys_var, system_inputs[sys_var][0])
+        return src
+
+
     def create_nodes(self):
         self.parser.clear_imports()
         self.parser.import_current_package()
         self.console_message("Compiling...")
 
-        src = self.code_editor.toPlainText()
-        self.source_code = src
+        if not self.show_rendered:
+            src = self.code_editor.toPlainText()
+            self.source_code = src
+        else:
+            src = self.source_code
         self.save_source() 
 
-        for sys_var in system_inputs:
-            src = src.replace(sys_var, system_inputs[sys_var][0])
+        src = self.process_system_inputs(src)
 
         self.parser.main_window = self
         self.parse_tree_from_source()
         self.import_all_packages()
 
-        current_package: sd.api.SDPackage = self.graph.getPackage()
+        current_package: sd.api.SDPackage = self.package
         resources: list[sd.api.SDResource] = current_package.getChildrenResources(True)
 
         found_functions = False
 
         for node in ast.walk(self.tree):
+
+            graph_folder = current_package
 
             if not isinstance(node, ast.FunctionDef):
                 continue
@@ -316,7 +319,6 @@ class EditorTab(QWidget):
             function_name = node.name
 
             self.console_message(f"Compiling function [{function_name}]")
-
             
             function_graph: sd.api.SDSBSFunctionGraph = None
             inputs_node: sd.api.SDNode = None
@@ -328,15 +330,15 @@ class EditorTab(QWidget):
 
             if PATH_DECORATOR in decorators:
                 decorator = decorators[PATH_DECORATOR]
-                current_package = sdu.create_package_folders(current_package, decorator.args["path"])
+                graph_folder = sdu.create_package_folders(current_package, decorator.args[0])
 
             if PIXEL_PROCESSOR_DECORATOR in decorators:
                 decorator = decorators[PIXEL_PROCESSOR_DECORATOR]
                 if self.expr_type is ExpressionType.COMPOSITE_GRAPH:
                     graph = self.graph
                 else:
-                    graph = self.get_package_compgraph(resources, decorator.args["graph"])
-                pp_node = sdu.get_graph_node(graph, uid=decorator.args["uid"])
+                    graph = self.get_package_compgraph(resources, decorator.keyargs["graph"])
+                pp_node = sdu.get_graph_node(graph, uid=decorator.keyargs["uid"])
                 prop = sdu.get_node_input(pp_node, "perpixel")
                 function_graph = pp_node.newPropertyGraph(prop, sdu.function_graph_class)
                 inputs_node = pp_node
@@ -347,9 +349,9 @@ class EditorTab(QWidget):
                 if self.expr_type is ExpressionType.COMPOSITE_GRAPH:
                     graph = self.graph
                 else:
-                    graph = self.get_package_compgraph(resources, decorator.args["graph"])
+                    graph = self.get_package_compgraph(resources, decorator.keyargs["graph"])
 
-                vp_node = sdu.get_graph_node(graph, uid=decorator.args["uid"])
+                vp_node = sdu.get_graph_node(graph, uid=decorator.keyargs["uid"])
                 prop = sdu.get_node_input(vp_node, "function")
                 function_graph = vp_node.newPropertyGraph(prop, sdu.function_graph_class)
                 inputs_node = vp_node
@@ -360,12 +362,12 @@ class EditorTab(QWidget):
                 if self.expr_type is ExpressionType.COMPOSITE_GRAPH:
                     graph = self.graph
                 else:
-                    graph = self.get_package_compgraph(resources, decorator.args["graph"])
-                comp_node = sdu.get_graph_node(graph, uid=decorator.args["uid"])
+                    graph = self.get_package_compgraph(resources, decorator.keyargs["graph"])
+                comp_node = sdu.get_graph_node(graph, uid=decorator.keyargs["uid"])
 
                 prop: sd.api.SDProperty = None
-                if "pid" in decorator.args:
-                    prop = sdu.get_node_input(comp_node, decorator.args["pid"])
+                if "pid" in decorator.keyargs:
+                    prop = sdu.get_node_input(comp_node, decorator.keyargs["pid"])
 
                 function_graph = comp_node.newPropertyGraph(prop, sdu.function_graph_class)
                 inputs_node = None
@@ -380,7 +382,7 @@ class EditorTab(QWidget):
                     function_graph = None
 
                 if function_graph is None:
-                    function_graph: sd.api.SDSBSFunctionGraph = sd.api.SDSBSFunctionGraph.sNew(current_package)
+                    function_graph: sd.api.SDSBSFunctionGraph = sd.api.SDSBSFunctionGraph.sNew(graph_folder)
                     function_graph.setIdentifier(function_name)
 
                 inputs_node = function_graph

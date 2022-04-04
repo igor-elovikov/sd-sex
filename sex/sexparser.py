@@ -1242,22 +1242,27 @@ class NodeCreator:
                 return self.parse_imported_function(operator)
 
             if function_name == export_function_name:
-                node = self.create_graph_node("sbs::function::set")
                 function_args = operator.args
 
-                if len(function_args) != 1:
-                    self._error(f"{export_function_name}() takes exactly one argument ({len(function_args)} given)", operator)
+                node: sd.api.SDNode = None
 
-                if not isinstance(function_args[0], ast.Name):
-                    self._error(f"{export_function_name}() takes only variables", operator)
+                if not function_args:
+                    self._error(f"{export_function_name}() has to have at least one argument")
 
-                node_to_export = self.parse_operator(function_args[0])
-                var_arg: ast.Name = function_args[0]
+                for arg in function_args:
 
-                node_to_export.newPropertyConnectionFromId(output_id, node, "value")
-                node.setInputPropertyValueFromId("__constant__", sd.api.SDValueString.sNew(var_arg.id))
+                    if not isinstance(arg, ast.Name):
+                        self._error(f"{export_function_name}() takes only variables", operator)
 
-                self.export_vars.append(node)
+                    node = self.create_graph_node("sbs::function::set")
+
+                    node_to_export = self.parse_operator(arg)
+                    var_arg: ast.Name = arg
+
+                    node_to_export.newPropertyConnectionFromId(output_id, node, "value")
+                    node.setInputPropertyValueFromId("__constant__", sd.api.SDValueString.sNew(var_arg.id))
+
+                    self.export_vars.append(node)
 
                 return node
             
