@@ -177,6 +177,18 @@ implicit_casts_map = {
     ("float4", "int4"): "sbs::function::toint4",            
 }
 
+system_inputs = {
+    "$pos": ("__sys_pos", "float2"),
+    "$size": ("__sys_size", "float2"),
+    "$sizelog2": ("__sys_sizelog2", "float2"),
+    "$tiling": ("__sys_tiling", "int"),
+    "$time": ("__sys_time", "float"),
+    "$depth": ("__sys_depth", "float"),
+    "$depthpow2": ("__sys_depthpow2", "float"),
+    "$number": ("__sys_number", "float")
+}
+
+
 class Connection:
     def __init__(self, connection: sd.api.SDConnection, in_node: sd.api.SDNode, out_node: sd.api.SDNode,
             in_property: sd.api.SDProperty, out_property: sd.api.SDProperty) -> None:

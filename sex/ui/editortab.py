@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 import ast
 import json
 import logging
@@ -13,6 +14,7 @@ from PySide2.QtWidgets import QGridLayout, QWidget
 import sd.api
 import sexsyntax
 import sexparser
+from sexparser import system_inputs
 import sdutils as sdu
 
 from sdutils import app
@@ -37,15 +39,19 @@ sd_type_map = {
     "int4": sd.api.SDTypeInt4.sNew(),
 }
 
-system_inputs = {
-    "$pos": ("__sys_pos", "float2"),
-    "$size": ("__sys_size", "float2"),
-    "$sizelog2": ("__sys_sizelog2", "float2"),
-    "$tiling": ("__sys_tiling", "int"),
-    "$time": ("__sys_time", "float"),
-    "$depth": ("__sys_depth", "float"),
-    "$depthpow2": ("__sys_depthpow2", "float"),
-    "$number": ("__sys_number", "float")
+var_input_regex = re.compile(r"\b(f|f2|f3|f4|i|i2|i3|i4|b|s)\$(\w+)\b")
+
+var_type_prefix_map = {
+    "b": "bool",
+    "s": "string",    
+    "f": "float",
+    "f2": "float2",
+    "f3": "float3",
+    "f4": "float4",
+    "i": "int",
+    "i2": "int",
+    "i3": "int",
+    "i4": "int"
 }
 
 class EditorTab(QWidget):
@@ -87,6 +93,8 @@ class EditorTab(QWidget):
         self.code_editor = code_editor
         self.frame_object: sd.api.SDGraphObjectFrame = None
         self.tree: ast.AST = None
+
+        self.input_variables = {}
 
         self.setup_intellisense()
 
@@ -279,8 +287,16 @@ class EditorTab(QWidget):
                 self.parser.import_package(node.module, None, names, global_scope)
 
     def process_system_inputs(self, src):
+        self.input_variables = {}
+
         for sys_var in system_inputs:
             src = src.replace(sys_var, system_inputs[sys_var][0])
+
+        for input_var in var_input_regex.findall(src):
+            self.input_variables[input_var[1]] = ("__sys_input_" + input_var[1], var_type_prefix_map[input_var[0]])
+
+        src = var_input_regex.sub(r"__sys_input_\g<2>", src)
+
         return src
 
 
@@ -434,7 +450,7 @@ class EditorTab(QWidget):
                         inputs_node.setPropertyAnnotationValueFromId(prop, "label", sd.api.SDValueString.sNew(var_name))
 
             self.parser.graph = function_graph
-            self.parse_expression_tree(node, {**inputs, **system_inputs}, graph)
+            self.parse_expression_tree(node, {**inputs, **system_inputs, **self.input_variables}, graph)
             self.parser.import_current_package()
 
         self.setup_intellisense()

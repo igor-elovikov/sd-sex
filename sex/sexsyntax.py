@@ -2,6 +2,7 @@ from PySide2.QtCore import QRegExp
 from PySide2.QtGui import QColor, QFont, QSyntaxHighlighter, QTextCharFormat
 
 import sexparser
+from sexparser import system_inputs
 
 def format(color, style=''):
     """Return a QTextCharFormat with the given attributes.
@@ -101,6 +102,11 @@ class SexHighlighter(QSyntaxHighlighter):
             for w in builtin_types]
 
         rules += [(r'\b%s\b' % sexparser.output_variable_name, 0, STYLES['output'])]
+
+        rules += [(r'\B\$%s\b' % w[1:], 0, STYLES['output'])
+            for w in system_inputs]
+
+        rules += [(r"\b(f|f2|f3|f4|i|i2|i3|i4|b|s)\$(\w+)\b", 0, STYLES['output'])]            
 
         rules += [(r'%s' % o, 0, STYLES['operator'])
             for o in SexHighlighter.operators]
