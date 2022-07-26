@@ -465,7 +465,7 @@ class EditorTab(QWidget):
             self.graph.deleteNode(graph_nodes.getItem(i))
 
         self.console_message("Create nodes...")
-        self.parse_expression_tree(self.tree, system_inputs)
+        self.parse_expression_tree(self.tree, {**system_inputs, **self.input_variables})
         if self.parser.nodes_num <= self.plugin_settings["align_max_nodes"]:
             self.console_message("Align nodes...")
             self.parser.align_nodes()

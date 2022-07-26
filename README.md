@@ -8,7 +8,7 @@ https://docs.substance3d.com/sddoc/plugin-search-paths-172825000.html (You need 
 
 After that you shoud see this toolbar with any function graph opened
 
-![Toolbar](https://github.com/igor-elovikov/sd-sex/blob/master/img/toolbar.png)
+![Toolbar](img/toolbar.png)
 
 _(on MacOS created toolbars aren't active by default so you would need to click on IE icon first to see Expression button)_
 
@@ -18,7 +18,7 @@ Alternatively you can install plugin from [release page](https://github.com/igor
 
 Just click _Expression_ button to open the editor.
 
-![Editor](https://github.com/igor-elovikov/sd-sex/blob/master/img/editor.png)
+![Editor](img/editor.png)
 
 To create a graph just click _COMPILE_ button. That's it.
 
@@ -42,7 +42,7 @@ _OUT_ = sample
 ```
 ## Built-in Function Nodes
 ### Constant
-![Constant](https://github.com/igor-elovikov/sd-sex/blob/master/img/constant.png)
+![Constant](img/constant.png)
 
 All function graph types are supported
 ```python
@@ -120,8 +120,26 @@ f3.x = 0.0 # this is not supported!
 f3 = merge_float3(0.0, f3.y, f3.z) # use this instead
 ```
 
+### Literals
+
+For convenience language supports literals to describe constants and vectors.
+The current syntax below
+
+```python
+v2 = {1.0, 2.0} # v2 is float2(1.0, 2.0)
+v3 = {1.0, 2.0, 3.0} # v3 is float3(1.0, 2.0, 3.0)
+
+x = 1.0
+y = 2.0
+
+# In contrast to constant declaration you can pass variables to literal
+v = {x, y}
+```
+
+Literals will use constant nodes if all arguments are constant and vector nodes in onther cases.
+
 ### Variables
-![Variables](https://github.com/igor-elovikov/sd-sex/blob/master/img/variables.png)
+![Variables](img/variables.png)
 
 This one is pretty straightforward
 ```python
@@ -138,8 +156,10 @@ i3 = get_int3("my_int3_var")
 i4 = get_int4("my_int4_var")
 ```
 
+#### Builtin Variables
+
 ### Samplers
-![Samplers](https://github.com/igor-elovikov/sd-sex/blob/master/img/samplers.png)
+![Samplers](img/samplers.png)
 
 For sampling use `samplelum(uv, input, filtering)` for grayscale or `samplecol(uv, input, filtering)` for color. 
 
@@ -217,6 +237,15 @@ v = dot(v1, v2)
 All arithmetical and logical expressions follows Python grammar rules so you're not limited to just one operator
 ```python
 v = (v1 + v2 @ 2.0) * float3(5.0, 5.0, 5.0) - (v2 - v1) @ 5.0 
+```
+
+Augmented assigns are also supported for all binary operators
+```python
+x = 1.0
+x += 2.0 # [x] now is 3.0
+
+y = {1.0, 2.0}
+y *= {2.0, 2.0} # [y] now is {2.0, 4.0}
 ```
 
 ### Logical
