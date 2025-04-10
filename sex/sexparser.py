@@ -1,19 +1,19 @@
 from __future__ import annotations
 
 import ast
-from asyncio.log import logger
-import re
-import os
 import logging
+import os
+import re
+from asyncio.log import logger
 
 import sd
 import sd.api
+import sdutils as sdu
+from astutils import get_node_name
 from sd.api.sdbasetypes import float2
 from sd.api.sdproperty import SDPropertyCategory
-import sdutils as sdu
 from sdutils import resource_path
 
-from astutils import get_node_name
 from sex.sdutils import current_package, pkg_mgr
 
 grid_size = 1.4 * sd.ui.graphgrid.GraphGrid.sGetFirstLevelSize()
@@ -39,18 +39,12 @@ binary_operator_map = {
     ast.Div: "sbs::function::div",
     ast.Mod: "sbs::function::mod",
     ast.MatMult: "sbs::function::mulscalar",
-    ast.BitXor: "sbs::function::dot"
+    ast.BitXor: "sbs::function::dot",
 }
 
-unary_operator_map = {
-    ast.Not: "sbs::function::not",
-    ast.USub: "sbs::function::neg"
-}
+unary_operator_map = {ast.Not: "sbs::function::not", ast.USub: "sbs::function::neg"}
 
-bool_operator_map = {
-    ast.And: "sbs::function::and",
-    ast.Or: "sbs::function::or"
-}
+bool_operator_map = {ast.And: "sbs::function::and", ast.Or: "sbs::function::or"}
 
 compare_operator_map = {
     ast.Gt: "sbs::function::gt",
@@ -80,6 +74,7 @@ function_node_map = {
     "exp": ("sbs::function::exp", ["a"]),
     "log2": ("sbs::function::log2", ["a"]),
     "pow2": ("sbs::function::pow2", ["a"]),
+    "pow": ("sbs::function::pow", ["a", "b"]),
     "lerp": ("sbs::function::lerp", ["a", "b", "x"]),
     "min": ("sbs::function::min", ["a", "b"]),
     "max": ("sbs::function::max", ["a", "b"]),
@@ -88,81 +83,71 @@ function_node_map = {
 }
 
 constants_map = {
-    "float" : ("sbs::function::const_float1", sd.api.SDValueFloat, float),
-    "float2" : ("sbs::function::const_float2", sd.api.SDValueFloat2, sd.api.sdbasetypes.float2),
-    "float3" : ("sbs::function::const_float3", sd.api.SDValueFloat3, sd.api.sdbasetypes.float3),
-    "float4" : ("sbs::function::const_float4", sd.api.SDValueFloat4, sd.api.sdbasetypes.float4),
-    "int" : ("sbs::function::const_int1", sd.api.SDValueInt, int),
-    "int2" : ("sbs::function::const_int2", sd.api.SDValueInt2, sd.api.sdbasetypes.int2),
-    "int3" : ("sbs::function::const_int3", sd.api.SDValueInt3, sd.api.sdbasetypes.int3),
-    "int4" : ("sbs::function::const_int4", sd.api.SDValueInt4, sd.api.sdbasetypes.int4)
+    "float": ("sbs::function::const_float1", sd.api.SDValueFloat, float),
+    "float2": ("sbs::function::const_float2", sd.api.SDValueFloat2, sd.api.sdbasetypes.float2),
+    "float3": ("sbs::function::const_float3", sd.api.SDValueFloat3, sd.api.sdbasetypes.float3),
+    "float4": ("sbs::function::const_float4", sd.api.SDValueFloat4, sd.api.sdbasetypes.float4),
+    "int": ("sbs::function::const_int1", sd.api.SDValueInt, int),
+    "int2": ("sbs::function::const_int2", sd.api.SDValueInt2, sd.api.sdbasetypes.int2),
+    "int3": ("sbs::function::const_int3", sd.api.SDValueInt3, sd.api.sdbasetypes.int3),
+    "int4": ("sbs::function::const_int4", sd.api.SDValueInt4, sd.api.sdbasetypes.int4),
 }
 
 vectors_map = {
-    "vector2" : "sbs::function::vector2",
-    "vector3" : "sbs::function::vector3",
-    "vector4" : "sbs::function::vector4",
-    "ivector2" : "sbs::function::ivector2",
-    "ivector3" : "sbs::function::ivector3",
-    "ivector4" : "sbs::function::ivector4"
+    "vector2": "sbs::function::vector2",
+    "vector3": "sbs::function::vector3",
+    "vector4": "sbs::function::vector4",
+    "ivector2": "sbs::function::ivector2",
+    "ivector3": "sbs::function::ivector3",
+    "ivector4": "sbs::function::ivector4",
 }
 
 get_variable_map = {
-    "get_float" : "sbs::function::get_float1",
-    "get_float2" : "sbs::function::get_float2",
-    "get_float3" : "sbs::function::get_float3",
-    "get_float4" : "sbs::function::get_float4",
-    "get_int" : "sbs::function::get_integer1",
-    "get_int2" : "sbs::function::get_integer2",
-    "get_int3" : "sbs::function::get_integer3",
-    "get_int4" : "sbs::function::get_integer4",
-    "get_bool" : "sbs::function::get_bool",
-    "get_string" : "sbs::function::get_string"
+    "get_float": "sbs::function::get_float1",
+    "get_float2": "sbs::function::get_float2",
+    "get_float3": "sbs::function::get_float3",
+    "get_float4": "sbs::function::get_float4",
+    "get_int": "sbs::function::get_integer1",
+    "get_int2": "sbs::function::get_integer2",
+    "get_int3": "sbs::function::get_integer3",
+    "get_int4": "sbs::function::get_integer4",
+    "get_bool": "sbs::function::get_bool",
+    "get_string": "sbs::function::get_string",
 }
 
 sd_types_node_map = {
     sd.api.SDTypeFloat: "sbs::function::get_float1",
-    sd.api.SDTypeFloat2 : "sbs::function::get_float2",
-    sd.api.SDTypeFloat3 : "sbs::function::get_float3",
-    sd.api.SDTypeFloat4 : "sbs::function::get_float4",
-    sd.api.SDTypeInt : "sbs::function::get_integer1",
-    sd.api.SDTypeInt2 : "sbs::function::get_integer2",
-    sd.api.SDTypeInt3 : "sbs::function::get_integer3",
-    sd.api.SDTypeInt4 : "sbs::function::get_integer4",
-    sd.api.SDTypeBool : "sbs::function::get_bool",
-    sd.api.SDTypeString : "sbs::function::get_string"
+    sd.api.SDTypeFloat2: "sbs::function::get_float2",
+    sd.api.SDTypeFloat3: "sbs::function::get_float3",
+    sd.api.SDTypeFloat4: "sbs::function::get_float4",
+    sd.api.SDTypeInt: "sbs::function::get_integer1",
+    sd.api.SDTypeInt2: "sbs::function::get_integer2",
+    sd.api.SDTypeInt3: "sbs::function::get_integer3",
+    sd.api.SDTypeInt4: "sbs::function::get_integer4",
+    sd.api.SDTypeBool: "sbs::function::get_bool",
+    sd.api.SDTypeString: "sbs::function::get_string",
 }
 
 casts_map = {
-    "tofloat" : "sbs::function::tofloat",
-    "tofloat2" : "sbs::function::tofloat2",
-    "tofloat3" : "sbs::function::tofloat3",
-    "tofloat4" : "sbs::function::tofloat4",
-    "toint" : "sbs::function::toint1",
-    "toint2" : "sbs::function::toint2",
-    "toint3" : "sbs::function::toint3",
-    "toint4" : "sbs::function::toint4"
+    "tofloat": "sbs::function::tofloat",
+    "tofloat2": "sbs::function::tofloat2",
+    "tofloat3": "sbs::function::tofloat3",
+    "tofloat4": "sbs::function::tofloat4",
+    "toint": "sbs::function::toint1",
+    "toint2": "sbs::function::toint2",
+    "toint3": "sbs::function::toint3",
+    "toint4": "sbs::function::toint4",
 }
 
-float_components_map = {
-    "x" : 0,
-    "y" : 1,
-    "z" : 2,
-    "w" : 3
-}
+float_components_map = {"x": 0, "y": 1, "z": 2, "w": 3}
 
-int_components_map = {
-    "a" : 0,
-    "b" : 1,
-    "c" : 2,
-    "d" : 3
-}
+int_components_map = {"a": 0, "b": 1, "c": 2, "d": 3}
 
 sd_integer_vector_types = {
-    1 : (sd.api.SDValueInt, int),
-    2 : (sd.api.SDValueInt2, sd.api.sdbasetypes.int2),
-    3 : (sd.api.SDValueInt3, sd.api.sdbasetypes.int3),
-    4 : (sd.api.SDValueInt4, sd.api.sdbasetypes.int4)
+    1: (sd.api.SDValueInt, int),
+    2: (sd.api.SDValueInt2, sd.api.sdbasetypes.int2),
+    3: (sd.api.SDValueInt3, sd.api.sdbasetypes.int3),
+    4: (sd.api.SDValueInt4, sd.api.sdbasetypes.int4),
 }
 
 
@@ -174,7 +159,7 @@ implicit_casts_map = {
     ("float", "int"): "sbs::function::toint1",
     ("float2", "int2"): "sbs::function::toint2",
     ("float3", "int3"): "sbs::function::toint3",
-    ("float4", "int4"): "sbs::function::toint4",            
+    ("float4", "int4"): "sbs::function::toint4",
 }
 
 system_inputs = {
@@ -185,13 +170,19 @@ system_inputs = {
     "$time": ("__sys_time", "float"),
     "$depth": ("__sys_depth", "float"),
     "$depthpow2": ("__sys_depthpow2", "float"),
-    "$number": ("__sys_number", "float")
+    "$number": ("__sys_number", "float"),
 }
 
 
 class Connection:
-    def __init__(self, connection: sd.api.SDConnection, in_node: sd.api.SDNode, out_node: sd.api.SDNode,
-            in_property: sd.api.SDProperty, out_property: sd.api.SDProperty) -> None:
+    def __init__(
+        self,
+        connection: sd.api.SDConnection,
+        in_node: sd.api.SDNode,
+        out_node: sd.api.SDNode,
+        in_property: sd.api.SDProperty,
+        out_property: sd.api.SDProperty,
+    ) -> None:
         self.connection: sd.api.SDConnection = connection
         self.in_node: sd.api.SDNode = in_node
         self.out_node: sd.api.SDNode = out_node
@@ -206,13 +197,16 @@ class Connection:
 class ParserError(Exception):
     pass
 
+
 def get_node_main_output(node: sd.api.SDNode) -> sd.api.SDProperty:
     return node.getPropertyFromId(output_id, SDPropertyCategory.Output)
+
 
 def get_base_type(type_id: str) -> str:
     if type_id.startswith("int"):
         return "int"
     return "float"
+
 
 def get_num_components(type_id: str) -> int:
     if type_id in ("float", "int", "bool"):
@@ -226,10 +220,12 @@ def get_num_components(type_id: str) -> int:
 
     return -1
 
+
 def get_type_from_base(base_type: str, comps: int) -> str:
     if comps == 1:
         return base_type
     return f"{base_type}{comps}"
+
 
 def implicit_conversion(parser: NodeCreator, in_node: sd.api.SDNode, to_type: str) -> sd.api.SDNode:
 
@@ -258,10 +254,12 @@ def implicit_conversion(parser: NodeCreator, in_node: sd.api.SDNode, to_type: st
     if in_comps > 1 and out_comps == 1:
         return implicit_conversion_vector_to_scalar(parser, in_node, to_type)
 
-    
     return None
 
-def implicit_conversion_scalar_to_vector(parser: NodeCreator, in_node: sd.api.SDNode, to_type: str) -> sd.api.SDNode:
+
+def implicit_conversion_scalar_to_vector(
+    parser: NodeCreator, in_node: sd.api.SDNode, to_type: str
+) -> sd.api.SDNode:
 
     in_property = in_node.getPropertyFromId(output_id, SDPropertyCategory.Output)
     in_type = in_property.getType().getId()
@@ -288,7 +286,9 @@ def implicit_conversion_scalar_to_vector(parser: NodeCreator, in_node: sd.api.SD
 
         in_node.newPropertyConnectionFromId(in_property.getId(), cast_node, "value")
         in_node = cast_node
-        in_property = cast_node.getPropertyFromId(output_id, sd.api.sdproperty.SDPropertyCategory.Output)
+        in_property = cast_node.getPropertyFromId(
+            output_id, sd.api.sdproperty.SDPropertyCategory.Output
+        )
 
     if out_components == 2:
         v2_node: sd.api.SDNode = parser.create_graph_node(vector_type_2)
@@ -315,7 +315,6 @@ def implicit_conversion_scalar_to_vector(parser: NodeCreator, in_node: sd.api.SD
         v2_node_1: sd.api.SDNode = parser.create_graph_node(vector_type_2)
         v2_node_2: sd.api.SDNode = parser.create_graph_node(vector_type_2)
 
-
         v2_node_1.newPropertyConnectionFromId(output_id, v4_node, "componentsin")
         v2_node_2.newPropertyConnectionFromId(output_id, v4_node, "componentslast")
 
@@ -328,7 +327,10 @@ def implicit_conversion_scalar_to_vector(parser: NodeCreator, in_node: sd.api.SD
 
     return None
 
-def implicit_conversion_vector_to_vector(parser: NodeCreator, in_node: sd.api.SDNode, to_type: str) -> sd.api.SDNode:
+
+def implicit_conversion_vector_to_vector(
+    parser: NodeCreator, in_node: sd.api.SDNode, to_type: str
+) -> sd.api.SDNode:
     in_property = in_node.getPropertyFromId(output_id, SDPropertyCategory.Output)
     in_type = in_property.getType().getId()
 
@@ -339,7 +341,9 @@ def implicit_conversion_vector_to_vector(parser: NodeCreator, in_node: sd.api.SD
     out_components = get_num_components(to_type)
 
     vector_type = "vector" if out_base_type == "float" else "ivector"
-    swizzle_type = "sbs::function::swizzle" if out_base_type == "float" else "sbs::function::iswizzle"
+    swizzle_type = (
+        "sbs::function::swizzle" if out_base_type == "float" else "sbs::function::iswizzle"
+    )
 
     vector_type_2 = f"sbs::function::{vector_type}2"
     vector_type_3 = f"sbs::function::{vector_type}3"
@@ -359,14 +363,15 @@ def implicit_conversion_vector_to_vector(parser: NodeCreator, in_node: sd.api.SD
 
         in_node.newPropertyConnectionFromId(in_property.getId(), cast_node, "value")
         in_node = cast_node
-        in_property = cast_node.getPropertyFromId(output_id, sd.api.sdproperty.SDPropertyCategory.Output)
-
+        in_property = cast_node.getPropertyFromId(
+            output_id, sd.api.sdproperty.SDPropertyCategory.Output
+        )
 
     if in_components == 2:
 
         if out_components == 3:
             v_node: sd.api.SDNode = parser.create_graph_node(vector_type_3)
-        elif out_components == 4: 
+        elif out_components == 4:
             v_node: sd.api.SDNode = parser.create_graph_node(vector_type_4)
         else:
             return None
@@ -388,8 +393,8 @@ def implicit_conversion_vector_to_vector(parser: NodeCreator, in_node: sd.api.SD
 
         if out_components == 2:
             v_node: sd.api.SDNode = xy_node
-            
-        elif out_components == 4: 
+
+        elif out_components == 4:
             v_node: sd.api.SDNode = parser.create_graph_node(vector_type_4)
             xy_node.newPropertyConnectionFromId(output_id, v_node, "componentsin")
             z_node.newPropertyConnectionFromId(output_id, v_node, "componentslast")
@@ -397,7 +402,7 @@ def implicit_conversion_vector_to_vector(parser: NodeCreator, in_node: sd.api.SD
             return None
 
         return v_node
-            
+
     if in_components == 4:
 
         xy_node = parser.create_graph_node(swizzle_2)
@@ -413,7 +418,7 @@ def implicit_conversion_vector_to_vector(parser: NodeCreator, in_node: sd.api.SD
 
         if out_components == 2:
             v_node: sd.api.SDNode = xy_node
-        elif out_components == 3: 
+        elif out_components == 3:
             v_node: sd.api.SDNode = parser.create_graph_node(vector_type_3)
             xy_node.newPropertyConnectionFromId(output_id, v_node, "componentsin")
             z_node.newPropertyConnectionFromId(output_id, v_node, "componentslast")
@@ -424,7 +429,10 @@ def implicit_conversion_vector_to_vector(parser: NodeCreator, in_node: sd.api.SD
 
     return None
 
-def implicit_conversion_vector_to_scalar(parser: NodeCreator, in_node: sd.api.SDNode, to_type: str) -> sd.api.SDNode:
+
+def implicit_conversion_vector_to_scalar(
+    parser: NodeCreator, in_node: sd.api.SDNode, to_type: str
+) -> sd.api.SDNode:
     in_property = in_node.getPropertyFromId(output_id, SDPropertyCategory.Output)
     in_type = in_property.getType().getId()
 
@@ -432,7 +440,9 @@ def implicit_conversion_vector_to_scalar(parser: NodeCreator, in_node: sd.api.SD
     out_base_type = get_base_type(to_type)
 
     in_components = get_num_components(in_type)
-    swizzle_type = "sbs::function::swizzle1" if out_base_type == "float" else "sbs::function::iswizzle1"
+    swizzle_type = (
+        "sbs::function::swizzle1" if out_base_type == "float" else "sbs::function::iswizzle1"
+    )
 
     if in_base_type != out_base_type:
         cast = (in_type, get_type_from_base(out_base_type, in_components))
@@ -445,7 +455,9 @@ def implicit_conversion_vector_to_scalar(parser: NodeCreator, in_node: sd.api.SD
 
         in_node.newPropertyConnectionFromId(in_property.getId(), cast_node, "value")
         in_node = cast_node
-        in_property = cast_node.getPropertyFromId(output_id, sd.api.sdproperty.SDPropertyCategory.Output)
+        in_property = cast_node.getPropertyFromId(
+            output_id, sd.api.sdproperty.SDPropertyCategory.Output
+        )
 
     x_node = parser.create_graph_node(swizzle_type)
     sd_value_type, sd_base_type = sd_integer_vector_types[1]
@@ -466,7 +478,7 @@ def get_multityped_best_match(connections: list[Connection]):
     for connection in connections:
 
         in_type = connection.in_property.getType().getId()
-        
+
         in_base_types.add(get_base_type(in_type))
         in_comps = get_num_components(in_type)
         in_max_components = max(in_max_components, in_comps)
@@ -493,7 +505,7 @@ def get_multityped_best_match(connections: list[Connection]):
         out_base_type = "int"
 
     return get_type_from_base(out_base_type, components)
-    
+
 
 def check_operator_types(op):
     def wrapper(parser, operator) -> sd.api.SDNode:
@@ -501,8 +513,17 @@ def check_operator_types(op):
         node_definition = node.getDefinition().getId() if node else ""
 
         # can't check swizzling (something wrong with connection types)
-        is_swizzling_node = "sbs::function::swizzle" in node_definition or "sbs::function::iswizzle" in node_definition or "sbs::function::sequence" in node_definition
-        if node and not is_swizzling_node and not isinstance(operator, ast.Name) and not isinstance(operator, ast.Set):
+        is_swizzling_node = (
+            "sbs::function::swizzle" in node_definition
+            or "sbs::function::iswizzle" in node_definition
+            or "sbs::function::sequence" in node_definition
+        )
+        if (
+            node
+            and not is_swizzling_node
+            and not isinstance(operator, ast.Name)
+            and not isinstance(operator, ast.Set)
+        ):
             node_inputs = node.getProperties(sd.api.sdproperty.SDPropertyCategory.Input)
 
             n_input: sd.api.SDProperty
@@ -525,7 +546,9 @@ def check_operator_types(op):
                 in_property = prop_connection.getInputProperty()
                 out_property = prop_connection.getOutputProperty()
 
-                connection = Connection(prop_connection, in_node, out_node, in_property, out_property)
+                connection = Connection(
+                    prop_connection, in_node, out_node, in_property, out_property
+                )
                 out_types = connection.get_out_types()
 
                 if len(out_types) > 1:
@@ -541,7 +564,9 @@ def check_operator_types(op):
                         continue
                     implicit_cast_node = implicit_conversion(parser, c.in_node, out_type)
                     if implicit_cast_node is not None:
-                        implicit_cast_node.newPropertyConnectionFromId(output_id, out_node, c.out_property.getId())
+                        implicit_cast_node.newPropertyConnectionFromId(
+                            output_id, out_node, c.out_property.getId()
+                        )
                     else:
                         parser._error(f"Cant cast {in_type} to {out_type} for operator", operator)
 
@@ -552,18 +577,19 @@ def check_operator_types(op):
                     continue
                 implicit_cast_node = implicit_conversion(parser, c.in_node, out_type)
                 if implicit_cast_node is not None:
-                    implicit_cast_node.newPropertyConnectionFromId(output_id, out_node, c.out_property.getId())
+                    implicit_cast_node.newPropertyConnectionFromId(
+                        output_id, out_node, c.out_property.getId()
+                    )
                 else:
                     parser._error(f"Cant cast {in_type} to {out_type} for operator", operator)
 
-
         return node
 
-    return wrapper   
+    return wrapper
 
 
 class NodeCreator:
-    def __init__(self, graph: sd.api.SDGraph=None):
+    def __init__(self, graph: sd.api.SDGraph = None):
         self.logger = logging.getLogger("sd-sex")
 
         self.var_scope = {}
@@ -611,7 +637,9 @@ class NodeCreator:
     def _error(self, message: str, operator: ast.Expr):
         raise ParserError(f"[line {operator.lineno}: col {operator.col_offset}] ERROR: {message}")
 
-    def get_package_functions(self, sd_package: sd.api.SDPackage, namespace=None, function_list=None, to_lower_case=False):
+    def get_package_functions(
+        self, sd_package: sd.api.SDPackage, namespace=None, function_list=None, to_lower_case=False
+    ):
 
         functions = sd_package.getChildrenResources(True)
         sd_resource: sd.api.SDResource
@@ -658,34 +686,48 @@ class NodeCreator:
         current_path = os.path.dirname(current_package.getFilePath())
 
         if len(name_tokens) == 1:
-            path = os.path.join(current_path, name_tokens[0] + ".sbs") 
+            path = os.path.join(current_path, name_tokens[0] + ".sbs")
         else:
             if name_tokens[0] == "sbs":
-                path = os.path.join(resource_path, "packages", *name_tokens[1:-1], name_tokens[-1] + ".sbs")
+                path = os.path.join(
+                    resource_path, "packages", *name_tokens[1:-1], name_tokens[-1] + ".sbs"
+                )
             else:
                 path = os.path.join(current_path, *name_tokens[:-1], name_tokens[-1] + ".sbs")
-        
+
         return os.path.normpath(path)
 
     def import_current_package(self):
         self.import_package_from_resource(self.graph.getPackage())
 
-    def import_package(self, package_name: str, alias: str = None, from_list: list[str] = None, global_scope=False):
+    def import_package(
+        self, package_name: str, alias: str = None, from_list: list[str] = None, global_scope=False
+    ):
         package_path = self.get_package_path_from_alias(package_name)
         self.logger.info(f"Import functions from: {package_name}. path: {package_path}")
         functions_package: sd.api.SDPackage = sdu.load_package_from_path(package_path)
         namespace = package_name if alias is None else alias
-        self.import_package_from_resource(functions_package, namespace, from_list, package_name.startswith("sbs."), global_scope)
-    
-    def import_package_from_resource(self, package: sd.api.SDPackage, namespace: str = None, from_list: list[str] = None, to_lower_case=False, global_scope=False):
+        self.import_package_from_resource(
+            functions_package, namespace, from_list, package_name.startswith("sbs."), global_scope
+        )
+
+    def import_package_from_resource(
+        self,
+        package: sd.api.SDPackage,
+        namespace: str = None,
+        from_list: list[str] = None,
+        to_lower_case=False,
+        global_scope=False,
+    ):
         self.logger.info(f"Import functions from: {package} Path: {package.getFilePath()}")
         namespace = None if from_list is not None or global_scope else namespace
         if namespace is not None:
             for namespace_token in namespace.split("."):
                 if namespace_token not in self.keywords:
                     self.keywords.append(namespace_token)
-        self.imported_functions.update(self.get_package_functions(package, namespace, from_list, to_lower_case))
-
+        self.imported_functions.update(
+            self.get_package_functions(package, namespace, from_list, to_lower_case)
+        )
 
     def declare_inputs_from_graph(self, inputs_graph: sd.api.SDGraph):
         inputs = inputs_graph.getProperties(sd.api.sdproperty.SDPropertyCategory.Input)
@@ -697,7 +739,9 @@ class NodeCreator:
 
             if type(prop_type) in sd_types_node_map and prop_id[0] != "$":
                 input_node = self.create_graph_node(sd_types_node_map[type(prop_type)])
-                input_node.setInputPropertyValueFromId("__constant__", sd.api.SDValueString.sNew(prop_id))
+                input_node.setInputPropertyValueFromId(
+                    "__constant__", sd.api.SDValueString.sNew(prop_id)
+                )
                 self.var_scope[prop_id] = input_node
                 self.inputs_vars.append(prop_id)
 
@@ -708,25 +752,24 @@ class NodeCreator:
 
         resource: sd.api.SDResource
         inputs_graph: sd.api.SDGraph = None
-        
+
         for resource in pkg_resources:
             if resource.getIdentifier() == graph_id and isinstance(resource, sd.api.SDGraph):
                 inputs_graph = resource
 
         if inputs_graph is None:
             return False
-        
+
         self.declare_inputs_from_graph(inputs_graph)
 
         return True
 
     def set_new_node_position(self, node: sd.api.SDNode):
-        node.setPosition(float2(self.node_pos_x, self.node_pos_y))        
+        node.setPosition(float2(self.node_pos_x, self.node_pos_y))
         self.node_pos_y += grid_size
         if self.node_pos_y >= grid_size * max_nodes_in_row:
-            self.node_pos_x += grid_size 
+            self.node_pos_x += grid_size
             self.node_pos_y = 0
-
 
     def create_graph_node(self, graph_node_definition: str) -> sd.api.SDNode:
         graph_node = self.graph.newNode(graph_node_definition)
@@ -758,7 +801,6 @@ class NodeCreator:
                     input_node: sd.api.SDNode = node_connection.getInputPropertyNode()
                     self.add_node_to_aligh_queue(input_node, queue_index + 1)
 
-
     def align_nodes(self):
         nodes = self.graph.getNodes()
         self.align_queue.clear()
@@ -769,9 +811,11 @@ class NodeCreator:
         if len(output_nodes):
             output_node: sd.api.SDNode = output_nodes[0]
             output_node_id = output_node.getIdentifier()
-        
+
         for node in nodes:
-            out_property: sd.api.SDProperty = node.getPropertyFromId(output_id, sd.api.sdproperty.SDPropertyCategory.Output)
+            out_property: sd.api.SDProperty = node.getPropertyFromId(
+                output_id, sd.api.sdproperty.SDPropertyCategory.Output
+            )
             is_output_connected = False
             if out_property:
                 out_connections = node.getPropertyConnections(out_property)
@@ -779,12 +823,14 @@ class NodeCreator:
                     is_output_connected = True
 
             is_output_node = node.getIdentifier() == output_node_id
-            if (not isinstance(node, sd.api.SDGraphObject) and not is_output_connected) or is_output_node:
+            if (
+                not isinstance(node, sd.api.SDGraphObject) and not is_output_connected
+            ) or is_output_node:
                 self.add_node_to_aligh_queue(node, 0)
 
         self.align_queue = [l for l in self.align_queue if len(l)]
 
-        max_rows = len(max(self.align_queue, key = lambda l: len(l)))
+        max_rows = len(max(self.align_queue, key=lambda l: len(l)))
         grid_size_h = grid_size * 1.3
 
         graph_height = max_rows * grid_size
@@ -792,11 +838,10 @@ class NodeCreator:
 
         for col_index, col_nodes in enumerate(self.align_queue):
             col_x = graph_width - (col_index + 1) * grid_size_h
-            col_y = graph_height / 2.0  - len(col_nodes) / 2.0 * grid_size
+            col_y = graph_height / 2.0 - len(col_nodes) / 2.0 * grid_size
 
             for row_index, node in enumerate(col_nodes):
                 node.setPosition(float2(col_x, col_y + row_index * grid_size))
-
 
     def create_graph_node_from_resource(self, resource: sd.api.SDResource) -> sd.api.SDNode:
         graph_node = self.graph.newInstanceNode(resource)
@@ -807,9 +852,16 @@ class NodeCreator:
 
         def check_components(total_components, operator):
             if total_components <= 0 or total_components > 4:
-                self._error(f"Number of components in literal has to be in range [1-4]. {total_components} components was given", operator)
-        
-        def append_input(inputs: list[tuple[sd.api.SDProperty, sd.api.SDNode]], node: sd.api.SDNode, input_id: str):
+                self._error(
+                    f"Number of components in literal has to be in range [1-4]. {total_components} components was given",
+                    operator,
+                )
+
+        def append_input(
+            inputs: list[tuple[sd.api.SDProperty, sd.api.SDNode]],
+            node: sd.api.SDNode,
+            input_id: str,
+        ):
             inp: sd.api.SDProperty = node.getPropertyFromId(input_id, SDPropertyCategory.Input)
             inputs.append((inp, node))
 
@@ -832,12 +884,15 @@ class NodeCreator:
 
             literal_type = get_type_from_base(literal_base_type, total_components)
 
-            (constant_node_definition, constant_sd_type, constant_sd_value) = constants_map[literal_type]
+            (constant_node_definition, constant_sd_type, constant_sd_value) = constants_map[
+                literal_type
+            ]
             literal_node = self.create_graph_node(constant_node_definition)
-            literal_node.setInputPropertyValueFromId("__constant__", constant_sd_type.sNew(constant_sd_value(*comp_numbers)))
+            literal_node.setInputPropertyValueFromId(
+                "__constant__", constant_sd_type.sNew(constant_sd_value(*comp_numbers))
+            )
 
             return literal_node
-
 
         for comp in components:
             comp_node = self.parse_operator(comp)
@@ -848,14 +903,17 @@ class NodeCreator:
         total_components = sum(get_num_components(t) for t in component_types)
         check_components(total_components, operator)
 
-
         literal_base_type = "float"
         all_int = all(get_base_type(t) == "int" for t in component_types)
         if all_int:
             literal_base_type = "int"
 
         vector_type = "vector" if literal_base_type == "float" else "ivector"
-        swizzle_type = "sbs::function::swizzle1" if literal_base_type == "float" else "sbs::function::iswizzle1"
+        swizzle_type = (
+            "sbs::function::swizzle1"
+            if literal_base_type == "float"
+            else "sbs::function::iswizzle1"
+        )
 
         vector_type_2 = f"sbs::function::{vector_type}2"
         vector_type_3 = f"sbs::function::{vector_type}3"
@@ -869,10 +927,10 @@ class NodeCreator:
             if out_num_components == 1:
                 component_outputs.append((get_node_main_output(node), node))
                 continue
-            
+
             if out_num_components < 1:
                 continue
-            
+
             for i in range(out_num_components):
                 swizzle_node = self.create_graph_node(swizzle_type)
                 node.newPropertyConnectionFromId(output_id, swizzle_node, "vector")
@@ -899,7 +957,6 @@ class NodeCreator:
                 append_input(component_inputs, v2_node, "componentslast")
                 append_input(component_inputs, out_node, "componentslast")
 
-
             elif total_components == 4:
                 out_node = self.create_graph_node(vector_type_4)
 
@@ -917,7 +974,7 @@ class NodeCreator:
                 in_prop, in_node = comp_in
                 out_prop, out_comp_node = comp_out
                 out_comp_node.newPropertyConnection(out_prop, in_node, in_prop)
-            
+
             return out_node
 
         if total_components == 1:
@@ -928,7 +985,10 @@ class NodeCreator:
     def parse_swizzling(self, operator: ast.Attribute) -> sd.api.SDNode:
         num_components = len(operator.attr)
         if num_components > 4:
-            self._error(f"Swizzling supports up to 4 components ({num_components} given: .{operator.attr})", operator)
+            self._error(
+                f"Swizzling supports up to 4 components ({num_components} given: .{operator.attr})",
+                operator,
+            )
 
         float_components_found = all((c in float_components_map.keys()) for c in operator.attr)
         int_components_found = all((c in int_components_map.keys()) for c in operator.attr)
@@ -940,16 +1000,19 @@ class NodeCreator:
             node = self.create_graph_node(f"sbs::function::swizzle{num_components}")
             components_mask = [float_components_map[c] for c in operator.attr]
             sd_value_type, sd_base_type = sd_integer_vector_types[num_components]
-            node.setInputPropertyValueFromId("__constant__", sd_value_type.sNew(sd_base_type(*components_mask)))
+            node.setInputPropertyValueFromId(
+                "__constant__", sd_value_type.sNew(sd_base_type(*components_mask))
+            )
             return node
 
         if int_components_found:
             node = self.create_graph_node(f"sbs::function::iswizzle{num_components}")
             components_mask = [int_components_map[c] for c in operator.attr]
             sd_value_type, sd_base_type = sd_integer_vector_types[num_components]
-            node.setInputPropertyValueFromId("__constant__", sd_value_type.sNew(sd_base_type(*components_mask)))
-            return node            
-
+            node.setInputPropertyValueFromId(
+                "__constant__", sd_value_type.sNew(sd_base_type(*components_mask))
+            )
+            return node
 
     def parse_vector(self, operator: ast.Call) -> sd.api.SDNode:
         func_arguments = operator.args
@@ -965,12 +1028,15 @@ class NodeCreator:
         last_node.newPropertyConnectionFromId(output_id, node, "componentslast")
 
         return node
-    
+
     def parse_value_cast(self, operator: ast.Call) -> sd.api.SDNode:
         func_arguments = operator.args
         if len(func_arguments) != 1:
-            self._error(f"{operator.func.id}() takes only one argument ({len(func_arguments)} given)", operator)
-        
+            self._error(
+                f"{operator.func.id}() takes only one argument ({len(func_arguments)} given)",
+                operator,
+            )
+
         value_argument = func_arguments[0]
         node = self.create_graph_node(casts_map[operator.func.id])
 
@@ -996,7 +1062,9 @@ class NodeCreator:
 
     def parse_constant(self, operator: ast.Call) -> sd.api.SDNode:
         constant_type = operator.func.id
-        (constant_node_definition, constant_sd_type, constant_sd_value) = constants_map[constant_type]
+        (constant_node_definition, constant_sd_type, constant_sd_value) = constants_map[
+            constant_type
+        ]
 
         num_components = int(constant_node_definition[-1:])
         func_arguments = operator.args
@@ -1004,7 +1072,10 @@ class NodeCreator:
         arg_values = []
 
         if num_components != len(func_arguments):
-            self._error(f"{constant_type}() takes {num_components} arguments ({len(func_arguments)} given)", operator)
+            self._error(
+                f"{constant_type}() takes {num_components} arguments ({len(func_arguments)} given)",
+                operator,
+            )
         else:
             for arg in func_arguments:
                 if not isinstance(arg, ast.Num):
@@ -1013,9 +1084,10 @@ class NodeCreator:
                     arg: ast.Num
                     arg_values.append(arg.n)
 
-        
         constant_node = self.create_graph_node(constant_node_definition)
-        constant_node.setInputPropertyValueFromId("__constant__", constant_sd_type.sNew(constant_sd_value(*arg_values)))
+        constant_node.setInputPropertyValueFromId(
+            "__constant__", constant_sd_type.sNew(constant_sd_value(*arg_values))
+        )
         return constant_node
 
     def parse_binary_operator(self, operator: ast.BinOp) -> sd.api.SDNode:
@@ -1024,7 +1096,7 @@ class NodeCreator:
             operator_node = self.create_graph_node(binary_operator_map[type(operator.op)])
             left_node = self.parse_operator(operator.left)
             right_node = self.parse_operator(operator.right)
-            
+
             left_node.newPropertyConnectionFromId(output_id, operator_node, "a")
             right_input = "b"
             if isinstance(operator.op, ast.MatMult):
@@ -1040,7 +1112,7 @@ class NodeCreator:
 
             left_node = self.get_variable_node(operator.target.id, operator)
             right_node = self.parse_operator(operator.value)
-            
+
             left_node.newPropertyConnectionFromId(output_id, operator_node, "a")
             right_input = "b"
             if isinstance(operator.op, ast.MatMult):
@@ -1050,7 +1122,6 @@ class NodeCreator:
             self.var_scope[operator.target.id] = operator_node
 
             return operator_node
-
 
     def parse_unary_operator(self, operator: ast.UnaryOp) -> sd.api.SDNode:
         if type(operator.op) in unary_operator_map:
@@ -1081,7 +1152,7 @@ class NodeCreator:
 
                     prev_node.newPropertyConnectionFromId(output_id, node, "a")
                     operand_node.newPropertyConnectionFromId(output_id, node, "b")
-                                        
+
                     prev_node = node
 
             return node
@@ -1118,19 +1189,26 @@ class NodeCreator:
 
         node = self.create_graph_node(samplers_map[function_name])
         if len(operator.args) != 3:
-            self._error(f"{function_name}() takes 3 arguments ({len(operator.args)} given)", operator)
-        
+            self._error(
+                f"{function_name}() takes 3 arguments ({len(operator.args)} given)", operator
+            )
+
         pos_node = self.parse_operator(operator.args[0])
 
         input_image_arg = operator.args[1]
         filter_image_arg = operator.args[2]
 
         if not isinstance(input_image_arg, ast.Num) or not isinstance(filter_image_arg, ast.Num):
-            self._error(f"{function_name}() takes only constants for input image or filter", operator)
+            self._error(
+                f"{function_name}() takes only constants for input image or filter", operator
+            )
 
-        node.setInputPropertyValueFromId("__constant__", sd.api.SDValueInt2.sNew(sd.api.sdbasetypes.int2(input_image_arg.n, filter_image_arg.n)))
+        node.setInputPropertyValueFromId(
+            "__constant__",
+            sd.api.SDValueInt2.sNew(sd.api.sdbasetypes.int2(input_image_arg.n, filter_image_arg.n)),
+        )
         pos_node.newPropertyConnectionFromId(output_id, node, "pos")
-        
+
         return node
 
     def parse_function_node(self, operator: ast.Call) -> sd.api.SDNode:
@@ -1138,9 +1216,12 @@ class NodeCreator:
 
         function_sd_definition, input_names = function_node_map[function_name]
         node = self.create_graph_node(function_sd_definition)
-        
+
         if len(operator.args) != len(input_names):
-            self._error(f"{function_name}() takes {len(input_names)} arguments ({len(operator.args)} given)", operator)
+            self._error(
+                f"{function_name}() takes {len(input_names)} arguments ({len(operator.args)} given)",
+                operator,
+            )
 
         for arg, input_name in zip(operator.args, input_names):
             input_node = self.parse_operator(arg)
@@ -1154,7 +1235,10 @@ class NodeCreator:
         node = self.create_graph_node_from_resource(sd_resource)
 
         if len(operator.args) != len(inputs_list):
-            self._error(f"{func_name}() takes {len(inputs_list)} arguments ({len(operator.args)} given)", operator)
+            self._error(
+                f"{func_name}() takes {len(inputs_list)} arguments ({len(operator.args)} given)",
+                operator,
+            )
 
         for arg, input_name in zip(operator.args, inputs_list):
             input_node = self.parse_operator(arg)
@@ -1163,11 +1247,10 @@ class NodeCreator:
         return node
 
     def get_variable_node(self, variable_name: str, operator: ast.expr) -> sd.api.SDNode:
-            if variable_name in self.var_scope:
-                return self.var_scope[variable_name]
-            else:
-                self._error(f"Variable [{variable_name}] not found", operator)
-
+        if variable_name in self.var_scope:
+            return self.var_scope[variable_name]
+        else:
+            self._error(f"Variable [{variable_name}] not found", operator)
 
     @check_operator_types
     def parse_operator(self, operator) -> sd.api.SDNode:
@@ -1185,7 +1268,7 @@ class NodeCreator:
 
         if isinstance(operator, ast.IfExp):
             return self.parse_ifexpr(operator)
-                
+
         if isinstance(operator, ast.Num):
             operator: ast.Num
             value = operator.n
@@ -1194,7 +1277,7 @@ class NodeCreator:
                 node = self.create_graph_node("sbs::function::const_int1")
                 node.setInputPropertyValueFromId("__constant__", sd.api.SDValueInt.sNew(value))
                 return node
-        
+
             if isinstance(value, float):
                 node = self.create_graph_node("sbs::function::const_float1")
                 node.setInputPropertyValueFromId("__constant__", sd.api.SDValueFloat.sNew(value))
@@ -1211,7 +1294,7 @@ class NodeCreator:
             swizzle_node = self.parse_swizzling(operator)
             name_node.newPropertyConnectionFromId(output_id, swizzle_node, "vector")
             return swizzle_node
-        
+
         if isinstance(operator, ast.Name):
             operator: ast.Name
             variable_name = operator.id
@@ -1227,7 +1310,7 @@ class NodeCreator:
                 node = self.create_graph_node("sbs::function::const_bool")
                 node.setInputPropertyValueFromId("__constant__", sd.api.SDValueBool.sNew(value))
                 return node
-      
+
         if isinstance(operator, ast.Call):
             operator: ast.Call
             function_name = get_node_name(operator.func)
@@ -1272,25 +1355,33 @@ class NodeCreator:
                     var_arg: ast.Name = arg
 
                     node_to_export.newPropertyConnectionFromId(output_id, node, "value")
-                    node.setInputPropertyValueFromId("__constant__", sd.api.SDValueString.sNew(var_arg.id))
+                    node.setInputPropertyValueFromId(
+                        "__constant__", sd.api.SDValueString.sNew(var_arg.id)
+                    )
 
                     self.export_vars.append(node)
 
                 return node
-            
+
             if function_name == declare_inputs_function_name:
                 func_arguments = operator.args
 
                 if len(func_arguments) != 1:
-                    self._error(f"{declare_inputs_function_name}() has only one srting argument", operator)
+                    self._error(
+                        f"{declare_inputs_function_name}() has only one srting argument", operator
+                    )
 
                 if not isinstance(func_arguments[0], ast.Str):
-                    self._error(f"{declare_inputs_function_name}() argument has to be string", operator)
+                    self._error(
+                        f"{declare_inputs_function_name}() argument has to be string", operator
+                    )
 
                 arg: ast.Str = func_arguments[0]
 
                 if not self.declare_inputs(arg.s):
-                    self._error(f"Graph [{arg.s}] not found for {declare_inputs_function_name}()", operator)
+                    self._error(
+                        f"Graph [{arg.s}] not found for {declare_inputs_function_name}()", operator
+                    )
 
                 return None
 
@@ -1298,15 +1389,21 @@ class NodeCreator:
                 function_args = operator.args
 
                 if len(function_args) != 2:
-                    self._error(f"{setvar_function_name}() takes two arguments ({len(function_args)} given)")
+                    self._error(
+                        f"{setvar_function_name}() takes two arguments ({len(function_args)} given)"
+                    )
 
                 if not isinstance(function_args[0], ast.Str):
-                    self._error(f"{setvar_function_name}() first argument has to be string literal as variable name")
+                    self._error(
+                        f"{setvar_function_name}() first argument has to be string literal as variable name"
+                    )
 
                 value_node = self.parse_operator(function_args[1])
 
                 node: sd.api.SDNode = self.create_graph_node("sbs::function::set")
-                node.setInputPropertyValueFromId("__constant__", sd.api.SDValueString.sNew(function_args[0].s))
+                node.setInputPropertyValueFromId(
+                    "__constant__", sd.api.SDValueString.sNew(function_args[0].s)
+                )
                 value_node.newPropertyConnectionFromId(output_id, node, "value")
 
                 return node
@@ -1315,7 +1412,9 @@ class NodeCreator:
                 function_args = operator.args
 
                 if len(function_args) != 2:
-                    self._error(f"{sequence_function_name}() takes two arguments ({len(function_args)} given)")
+                    self._error(
+                        f"{sequence_function_name}() takes two arguments ({len(function_args)} given)"
+                    )
 
                 seqin_node = self.parse_operator(function_args[0])
                 seqlast_node = self.parse_operator(function_args[1])
@@ -1327,12 +1426,11 @@ class NodeCreator:
 
                 return node
 
-
             self._error(f"Function {function_name}() not found", operator)
 
-
-    
-    def parse_tree(self, expr_tree: ast.AST, inputs: dict = None, inputs_graph: sd.api.SDGraph = None):
+    def parse_tree(
+        self, expr_tree: ast.AST, inputs: dict = None, inputs_graph: sd.api.SDGraph = None
+    ):
         self.logger.info("Parsing AST tree")
         self._reset()
 
@@ -1346,7 +1444,9 @@ class NodeCreator:
                 var_name, var_type = inputs[inp]
                 input_node_definition = get_variable_map[f"get_{var_type}"]
                 input_node = self.create_graph_node(input_node_definition)
-                input_node.setInputPropertyValueFromId("__constant__", sd.api.SDValueString.sNew(inp))
+                input_node.setInputPropertyValueFromId(
+                    "__constant__", sd.api.SDValueString.sNew(inp)
+                )
                 self.var_scope[var_name] = input_node
 
         if inputs_graph is not None:
@@ -1378,7 +1478,9 @@ class NodeCreator:
                 variable_name = op.target.id
                 variable_type = op.annotation.id
 
-                expr_output: sd.api.SDProperty = expr_node.getPropertyFromId(output_id, SDPropertyCategory.Output)
+                expr_output: sd.api.SDProperty = expr_node.getPropertyFromId(
+                    output_id, SDPropertyCategory.Output
+                )
                 expr_type = expr_output.getType().getId()
 
                 var_node: sd.api.SDNode = None
@@ -1387,7 +1489,7 @@ class NodeCreator:
                     var_node = expr_node
                 else:
                     var_node = implicit_conversion(self, expr_node, variable_type)
-                
+
                 if var_node is not None:
                     self.var_scope[variable_name] = var_node
                     self.var_declare_line[variable_name] = expr.lineno
@@ -1396,7 +1498,10 @@ class NodeCreator:
                         self.graph.setOutputNode(self.var_scope[variable_name], True)
 
                 else:
-                    self._error(f"Can't cast {expr_type} to {variable_type} for variable [{variable_name}] assigment", op)
+                    self._error(
+                        f"Can't cast {expr_type} to {variable_type} for variable [{variable_name}] assigment",
+                        op,
+                    )
 
             # Return statement
             if isinstance(expr, ast.Return):
@@ -1405,13 +1510,16 @@ class NodeCreator:
         output_nodes = self.graph.getOutputNodes()
 
         if output_nodes.getSize() < 1:
-            self._error(f"No return statement or {output_variable_name} provided (or output type mismatch)", expr)
+            self._error(
+                f"No return statement or {output_variable_name} provided (or output type mismatch)",
+                expr,
+            )
 
         output_node: sd.api.SDNode = output_nodes.getItem(0)
 
         if len(self.export_vars) > 0:
             sequence_node = self.create_graph_node("sbs::function::sequence")
-            
+
             set_node: sd.api.SDNode = self.export_vars[0]
             set_node.newPropertyConnectionFromId(output_id, sequence_node, "seqin")
 
@@ -1430,20 +1538,31 @@ class NodeCreator:
         output_node = self.graph.getOutputNodes()[0]
         created_node: sd.api.SDNode
 
-        # Remove all nodes without output connections (not recursive, just optimize using declare_inputs and unused variables)      
+        # Remove all nodes without output connections (not recursive, just optimize using declare_inputs and unused variables)
         for created_node in self.graph.getNodes():
-            created_node_output = created_node.getPropertyFromId(output_id, sd.api.sdproperty.SDPropertyCategory.Output)
+            created_node_output = created_node.getPropertyFromId(
+                output_id, sd.api.sdproperty.SDPropertyCategory.Output
+            )
             output_connections = created_node.getPropertyConnections(created_node_output)
 
-            if not (created_node.getIdentifier() == output_node.getIdentifier()) and not output_connections.getSize():
+            if (
+                not (created_node.getIdentifier() == output_node.getIdentifier())
+                and not output_connections.getSize()
+            ):
 
-                scope_keys = [key for key, node in self.var_scope.items() 
-                    if node.getIdentifier() == created_node.getIdentifier() and key not in self.inputs_vars]
+                scope_keys = [
+                    key
+                    for key, node in self.var_scope.items()
+                    if node.getIdentifier() == created_node.getIdentifier()
+                    and key not in self.inputs_vars
+                ]
 
                 if scope_keys:
                     node_var_name = scope_keys[0]
                     node_var_line = self.var_declare_line[node_var_name]
                     if self.main_window:
-                        self.main_window.console_message(f"<b><font color=\"yellow\">[WARNING]: </font></b> Unused variable [{node_var_name}] (declared at line {node_var_line})")
+                        self.main_window.console_message(
+                            f'<b><font color="yellow">[WARNING]: </font></b> Unused variable [{node_var_name}] (declared at line {node_var_line})'
+                        )
 
                 self.graph.deleteNode(created_node)

@@ -1,9 +1,18 @@
 import sys
 
-from PySide2.QtCore import Qt, Signal, QRect, QSize
-from PySide2.QtGui import QFont, QTextCursor, QTextOption, QColor, QPainter, QTextFormat
-from PySide2.QtWidgets import (QApplication, QCompleter, QHBoxLayout,
-                               QLineEdit, QPlainTextEdit, QWidget, QTextEdit, QAbstractItemView)
+from PySide6.QtCore import QRect, QSize, Qt, Signal
+from PySide6.QtGui import QColor, QFont, QPainter, QTextCursor, QTextFormat, QTextOption
+from PySide6.QtWidgets import (
+    QAbstractItemView,
+    QApplication,
+    QCompleter,
+    QHBoxLayout,
+    QLineEdit,
+    QPlainTextEdit,
+    QTextEdit,
+    QWidget,
+)
+
 
 class QLineNumberArea(QWidget):
     def __init__(self, editor):
@@ -16,6 +25,7 @@ class QLineNumberArea(QWidget):
     def paintEvent(self, event):
         self.codeEditor.lineNumberAreaPaintEvent(event)
 
+
 class CodeEditor(QPlainTextEdit):
 
     class Completer(QCompleter):
@@ -27,8 +37,8 @@ class CodeEditor(QPlainTextEdit):
 
         def changeCompletion(self, completion):
             if completion.find("(") != -1:
-                completion = completion[:completion.find("(")]
-            #print("completion is " + str(completion))
+                completion = completion[: completion.find("(")]
+            # print("completion is " + str(completion))
             self.insertText.emit(completion)
 
     def __init__(self, parent=None):
@@ -51,7 +61,7 @@ class CodeEditor(QPlainTextEdit):
         font.setStyleHint(QFont.Monospace)
         font.setPointSize(self.font_size)
         self.lineNumberArea.setFont(font)
-        self.char_width = self.fontMetrics().boundingRectChar('9').width()        
+        self.char_width = self.fontMetrics().boundingRectChar("9").width()
         self.update_line_number_area_width(0)
 
     def line_number_area_width(self):
@@ -77,13 +87,15 @@ class CodeEditor(QPlainTextEdit):
     def resizeEvent(self, event):
         super().resizeEvent(event)
         cr = self.contentsRect()
-        self.lineNumberArea.setGeometry(QRect(cr.left(), cr.top(), self.line_number_area_width(), cr.height()))
+        self.lineNumberArea.setGeometry(
+            QRect(cr.left(), cr.top(), self.line_number_area_width(), cr.height())
+        )
 
     def highlightCurrentLine(self):
         extraSelections = []
         if not self.isReadOnly():
             selection = QTextEdit.ExtraSelection()
-            
+
             lineColor = QColor(Qt.darkGray).darker(300)
             selection.format.setBackground(lineColor)
             selection.format.setProperty(QTextFormat.FullWidthSelection, True)
@@ -106,13 +118,19 @@ class CodeEditor(QPlainTextEdit):
             if block.isVisible() and (bottom >= event.rect().top()):
                 number = str(blockNumber + 1)
                 painter.setPen(self.line_color)
-                painter.drawText(0, top, self.lineNumberArea.width() - 2 * self.char_width, height, Qt.AlignRight, number)
+                painter.drawText(
+                    0,
+                    top,
+                    self.lineNumberArea.width() - 2 * self.char_width,
+                    height,
+                    Qt.AlignRight,
+                    number,
+                )
 
             block = block.next()
             top = bottom
             bottom = top + self.blockBoundingRect(block).height()
             blockNumber += 1
-
 
     def init_code_completion(self, keywords):
         completer = CodeEditor.Completer(keywords)
@@ -133,8 +151,7 @@ class CodeEditor(QPlainTextEdit):
 
     def insertCompletion(self, completion):
         tc = self.textCursor()
-        extra = (len(completion) -
-            len(self.completer.completionPrefix()))
+        extra = len(completion) - len(self.completer.completionPrefix())
         tc.movePosition(QTextCursor.Left)
         tc.movePosition(QTextCursor.EndOfWord)
         tc.insertText(completion[-extra:])
@@ -152,7 +169,7 @@ class CodeEditor(QPlainTextEdit):
         tc.select(QTextCursor.WordUnderCursor)
 
         selected_text = tc.selectedText()
-        
+
         if selected_text == "(":
             cursor_pos = tc.position()
             if cursor_pos - 2 > 0:
@@ -161,7 +178,7 @@ class CodeEditor(QPlainTextEdit):
                 cursor_prev.select(QTextCursor.WordUnderCursor)
                 selected_text = cursor_prev.selectedText()
 
-        #print(selected_text)
+        # print(selected_text)
         return selected_text
 
     def focusInEvent(self, event):
@@ -172,14 +189,14 @@ class CodeEditor(QPlainTextEdit):
     def keyPressEvent(self, event):
         if self.completer and self.completer.popup() and self.completer.popup().isVisible():
             if event.key() in (
-            Qt.Key_Enter,
-            Qt.Key_Return,
-            Qt.Key_Escape,
-            Qt.Key_Tab,
-            Qt.Key_Backtab
+                Qt.Key_Enter,
+                Qt.Key_Return,
+                Qt.Key_Escape,
+                Qt.Key_Tab,
+                Qt.Key_Backtab,
             ):
                 event.ignore()
-                #print("Event ignored")
+                # print("Event ignored")
                 return
 
         text_cursor = self.textCursor()
@@ -187,7 +204,7 @@ class CodeEditor(QPlainTextEdit):
         process_event = True
         if event.key() == Qt.Key_Tab:
             text_cursor.insertText(" " * self.tab_spaces)
-            process_event = False          
+            process_event = False
 
         if process_event:
             QPlainTextEdit.keyPressEvent(self, event)
@@ -199,27 +216,38 @@ class CodeEditor(QPlainTextEdit):
             if prev_line.startswith(" "):
                 text_cursor.insertText(new_line_spaces)
 
-        arrow_pressed = event.key() in (Qt.Key_Right, Qt.Key_Left, Qt.Key_Up, Qt.Key_Down, Qt.Key_Shift, Qt.Key_Control)
+        arrow_pressed = event.key() in (
+            Qt.Key_Right,
+            Qt.Key_Left,
+            Qt.Key_Up,
+            Qt.Key_Down,
+            Qt.Key_Shift,
+            Qt.Key_Control,
+        )
 
         modifiers = QApplication.keyboardModifiers()
         if event.key() == Qt.Key_Space and modifiers == Qt.ControlModifier:
             arrow_pressed = False
 
         completionPrefix = self.textUnderCursor()
-        #print(f"Completion prefix is [{completionPrefix}]")
+        # print(f"Completion prefix is [{completionPrefix}]")
 
         if len(completionPrefix) > 0 and not arrow_pressed:
-            if not (completionPrefix in self.keywords and sum(k.startswith(completionPrefix) for k in self.keywords) == 1):
+            if not (
+                completionPrefix in self.keywords
+                and sum(k.startswith(completionPrefix) for k in self.keywords) == 1
+            ):
                 self.completer.setCompletionPrefix(completionPrefix)
                 popup = self.completer.popup()
-                popup.setCurrentIndex(
-                    self.completer.completionModel().index(0,0))
+                popup.setCurrentIndex(self.completer.completionModel().index(0, 0))
                 cr = self.cursorRect()
-                cr.setWidth(self.completer.popup().sizeHintForColumn(0)
-                    + self.completer.popup().verticalScrollBar().sizeHint().width())
+                cr.setWidth(
+                    self.completer.popup().sizeHintForColumn(0)
+                    + self.completer.popup().verticalScrollBar().sizeHint().width()
+                )
                 self.completer.complete(cr)
             elif self.completer.popup():
                 self.completer.popup().hide()
 
         if not completionPrefix and self.completer.popup():
-                self.completer.popup().hide()
+            self.completer.popup().hide()

@@ -1,32 +1,35 @@
 from __future__ import annotations
 
-import os
-import re
 import ast
 import json
 import logging
+import os
+import re
 import traceback
-import jinja2
-
 from typing import Any
-from PySide2.QtWidgets import QGridLayout, QWidget
 
+import jinja2
 import sd.api
-import sexsyntax
-import sexparser
-from sexparser import system_inputs
 import sdutils as sdu
-
-from sdutils import app
-from astutils import parse_decorators
-
-from astutils import SexAstTransfomer
+import sexparser
+import sexsyntax
+from astutils import SexAstTransfomer, parse_decorators
+from PySide6.QtWidgets import QGridLayout, QWidget
 from sd.api.sdproperty import SDPropertyCategory
-from sexparser import NODE_PROPERTY_DECORATOR, FXMAP_PROPERTY_DECORATOR, PIXEL_PROCESSOR_DECORATOR, VALUE_PROCESSOR_DECORATOR, PATH_DECORATOR
+from sdutils import app
+from settings import ExpressionType
+from sexparser import (
+    FXMAP_PROPERTY_DECORATOR,
+    NODE_PROPERTY_DECORATOR,
+    PATH_DECORATOR,
+    PIXEL_PROCESSOR_DECORATOR,
+    VALUE_PROCESSOR_DECORATOR,
+    system_inputs,
+)
+
 import sex
 
 from .codeeditor import CodeEditor
-from settings import ExpressionType
 
 sd_type_map = {
     "float": sd.api.SDTypeFloat.sNew(),
@@ -43,7 +46,7 @@ var_input_regex = re.compile(r"\b(f|f2|f3|f4|i|i2|i3|i4|b|s)\$(\w+)\b")
 
 var_type_prefix_map = {
     "b": "bool",
-    "s": "string",    
+    "s": "string",
     "f": "float",
     "f2": "float2",
     "f3": "float3",
@@ -51,12 +54,19 @@ var_type_prefix_map = {
     "i": "int",
     "i2": "int",
     "i3": "int",
-    "i4": "int"
+    "i4": "int",
 }
+
 
 class EditorTab(QWidget):
 
-    def __init__(self, main_window, graph: sd.api.SDGraph = None, expr_type: ExpressionType = ExpressionType.FUNCTION_GRAPH, parent = None):
+    def __init__(
+        self,
+        main_window,
+        graph: sd.api.SDGraph = None,
+        expr_type: ExpressionType = ExpressionType.FUNCTION_GRAPH,
+        parent=None,
+    ):
         super().__init__(parent)
 
         self.logger = logging.getLogger("sd-sex")
@@ -84,11 +94,11 @@ class EditorTab(QWidget):
 
         code_editor.setup_editor(settings["font"], settings["editor_font_size"])
         code_editor.tab_spaces = settings["tab_spaces"]
-        
+
         layout.addWidget(code_editor)
 
         self.setLayout(layout)
-        
+
         self.source_code: str = ""
         self.code_editor = code_editor
         self.frame_object: sd.api.SDGraphObjectFrame = None
@@ -103,14 +113,25 @@ class EditorTab(QWidget):
 
         highlighter = sexsyntax.SexHighlighter(self.code_editor.document())
 
-        builtin_functions = ([*sexparser.function_node_map]
-                             + [*sexparser.vectors_map]
-                             + [*sexparser.samplers_map]
-                             + ["range"]
-                             + [*sexparser.casts_map])
+        builtin_functions = (
+            [*sexparser.function_node_map]
+            + [*sexparser.vectors_map]
+            + [*sexparser.samplers_map]
+            + ["range"]
+            + [*sexparser.casts_map]
+        )
 
-        builtin_types = ([*sexparser.constants_map] + [*sexparser.get_variable_map] 
-            + [PIXEL_PROCESSOR_DECORATOR, VALUE_PROCESSOR_DECORATOR, NODE_PROPERTY_DECORATOR, FXMAP_PROPERTY_DECORATOR, PATH_DECORATOR])
+        builtin_types = (
+            [*sexparser.constants_map]
+            + [*sexparser.get_variable_map]
+            + [
+                PIXEL_PROCESSOR_DECORATOR,
+                VALUE_PROCESSOR_DECORATOR,
+                NODE_PROPERTY_DECORATOR,
+                FXMAP_PROPERTY_DECORATOR,
+                PATH_DECORATOR,
+            ]
+        )
 
         highlighter.setup_rules([*self.parser.imported_functions], builtin_functions, builtin_types)
 
@@ -131,7 +152,6 @@ class EditorTab(QWidget):
                 cursor = self.code_editor.textCursor()
                 cursor.setPosition(self.saved_cursor_position)
                 self.code_editor.setTextCursor(cursor)
-                
 
     def get_rendered_code(self, code):
         package_file = self.package.getFilePath()
@@ -154,7 +174,6 @@ class EditorTab(QWidget):
         self.import_all_packages()
         self.setup_intellisense()
 
-
     def parse_tree_from_source(self):
         try:
             src = self.get_rendered_code(self.source_code)
@@ -169,8 +188,6 @@ class EditorTab(QWidget):
         except SyntaxError as err:
             self.console_message(str(err))
             self.console_message(err.text)
-
-        
 
     def get_package_inputs(self):
         result = set()
@@ -199,7 +216,9 @@ class EditorTab(QWidget):
         if self.expr_type is ExpressionType.FUNCTION_GRAPH:
 
             user_data = {"expression": self.source_code}
-            user_data_property: sd.api.SDProperty = self.graph.getPropertyFromId("userdata", SDPropertyCategory.Annotation)
+            user_data_property: sd.api.SDProperty = self.graph.getPropertyFromId(
+                "userdata", SDPropertyCategory.Annotation
+            )
             if user_data_property is not None:
                 self.graph.setPropertyValue(user_data_property, sdu.sd_value(json.dumps(user_data)))
 
@@ -227,15 +246,16 @@ class EditorTab(QWidget):
 
             line = current_ident + line.lstrip()
             lines[index] = line
-            
+
             if line.lstrip().startswith("def "):
                 current_ident = indent
                 continue
 
         return "\n".join(lines)
 
-
-    def parse_expression_tree(self, ast_tree, inputs: dict = None, inputs_graph: sd.api.SDGraph = None):
+    def parse_expression_tree(
+        self, ast_tree, inputs: dict = None, inputs_graph: sd.api.SDGraph = None
+    ):
         try:
             self.parser.parse_tree(ast_tree, inputs, inputs_graph)
         except sexparser.ParserError as err:
@@ -247,14 +267,35 @@ class EditorTab(QWidget):
         else:
             self.console_message("Nodes are succesfully created")
 
-    def get_package_resource(self, resources: list[sd.api.SDResource], res_id: str) -> sd.api.SDResource:
+    def get_package_resource(
+        self, resources: list[sd.api.SDResource], res_id: str
+    ) -> sd.api.SDResource:
         return next((res for res in resources if res.getIdentifier() == res_id), None)
 
-    def get_package_compgraph(self, resources: list[sd.api.SDResource], res_id: str) -> sd.api.SDSBSCompGraph:
-        return next((res for res in resources if res.getIdentifier() == res_id and res.getType().getId() == sdu.comp_graph_class), None)
+    def get_package_compgraph(
+        self, resources: list[sd.api.SDResource], res_id: str
+    ) -> sd.api.SDSBSCompGraph:
+        return next(
+            (
+                res
+                for res in resources
+                if res.getIdentifier() == res_id and res.getType().getId() == sdu.comp_graph_class
+            ),
+            None,
+        )
 
-    def get_package_functiongraph(self, resources: list[sd.api.SDResource], res_id: str) -> sd.api.SDSBSFunctionGraph:
-        return next((res for res in resources if res.getIdentifier() == res_id and res.getType().getId() == sdu.function_graph_class), None)
+    def get_package_functiongraph(
+        self, resources: list[sd.api.SDResource], res_id: str
+    ) -> sd.api.SDSBSFunctionGraph:
+        return next(
+            (
+                res
+                for res in resources
+                if res.getIdentifier() == res_id
+                and res.getType().getId() == sdu.function_graph_class
+            ),
+            None,
+        )
 
     def tab_change(self, tab_index):
         if tab_index == 1:
@@ -264,7 +305,7 @@ class EditorTab(QWidget):
             except jinja2.TemplateError as e:
                 self.console_message(str(e))
                 return
-            
+
             stripped_src = self.indent_fix(src)
             self.render_view.setPlainText(stripped_src)
 
@@ -293,12 +334,14 @@ class EditorTab(QWidget):
             src = src.replace(sys_var, system_inputs[sys_var][0])
 
         for input_var in var_input_regex.findall(src):
-            self.input_variables[input_var[1]] = ("__sys_input_" + input_var[1], var_type_prefix_map[input_var[0]])
+            self.input_variables[input_var[1]] = (
+                "__sys_input_" + input_var[1],
+                var_type_prefix_map[input_var[0]],
+            )
 
         src = var_input_regex.sub(r"__sys_input_\g<2>", src)
 
         return src
-
 
     def create_nodes(self):
         self.parser.clear_imports()
@@ -310,7 +353,7 @@ class EditorTab(QWidget):
             self.source_code = src
         else:
             src = self.source_code
-        self.save_source() 
+        self.save_source()
 
         src = self.process_system_inputs(src)
 
@@ -335,7 +378,7 @@ class EditorTab(QWidget):
             function_name = node.name
 
             self.console_message(f"Compiling function [{function_name}]")
-            
+
             function_graph: sd.api.SDSBSFunctionGraph = None
             inputs_node: sd.api.SDNode = None
 
@@ -388,7 +431,6 @@ class EditorTab(QWidget):
                 function_graph = comp_node.newPropertyGraph(prop, sdu.function_graph_class)
                 inputs_node = None
 
-
             if function_graph is None:
                 function_resource = self.get_package_functiongraph(resources, function_name)
                 function_graph = function_resource
@@ -398,7 +440,9 @@ class EditorTab(QWidget):
                     function_graph = None
 
                 if function_graph is None:
-                    function_graph: sd.api.SDSBSFunctionGraph = sd.api.SDSBSFunctionGraph.sNew(graph_folder)
+                    function_graph: sd.api.SDSBSFunctionGraph = sd.api.SDSBSFunctionGraph.sNew(
+                        graph_folder
+                    )
                     function_graph.setIdentifier(function_name)
 
                 inputs_node = function_graph
@@ -416,7 +460,9 @@ class EditorTab(QWidget):
 
                 arg: ast.arg
                 for arg in node.args.args:
-                    input_name = f"__{function_name}_arg_{arg.arg}" if not use_node_inputs else f"#{arg.arg}"
+                    input_name = (
+                        f"__{function_name}_arg_{arg.arg}" if not use_node_inputs else f"#{arg.arg}"
+                    )
                     inputs[input_name] = (arg.arg, arg.annotation.id)
 
                 prop: sd.api.SDProperty = None
@@ -445,12 +491,18 @@ class EditorTab(QWidget):
                                     inputs_node.deleteProperty(ni)
                     var_name, var_type = inputs[inp]
                     if need_to_create:
-                        prop: sd.api.SDProperty = inputs_node.newProperty(inp, sd_type_map[var_type], SDPropertyCategory.Input)
+                        prop: sd.api.SDProperty = inputs_node.newProperty(
+                            inp, sd_type_map[var_type], SDPropertyCategory.Input
+                        )
                     if not use_node_inputs:
-                        inputs_node.setPropertyAnnotationValueFromId(prop, "label", sd.api.SDValueString.sNew(var_name))
+                        inputs_node.setPropertyAnnotationValueFromId(
+                            prop, "label", sd.api.SDValueString.sNew(var_name)
+                        )
 
             self.parser.graph = function_graph
-            self.parse_expression_tree(node, {**inputs, **system_inputs, **self.input_variables}, graph)
+            self.parse_expression_tree(
+                node, {**inputs, **system_inputs, **self.input_variables}, graph
+            )
             self.parser.import_current_package()
 
         self.setup_intellisense()
@@ -469,4 +521,4 @@ class EditorTab(QWidget):
         if self.parser.nodes_num <= self.plugin_settings["align_max_nodes"]:
             self.console_message("Align nodes...")
             self.parser.align_nodes()
-        self.console_message("<b><font color=\"lime\">DONE!</font></b>")    
+        self.console_message('<b><font color="lime">DONE!</font></b>')

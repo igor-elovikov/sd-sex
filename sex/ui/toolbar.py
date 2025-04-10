@@ -1,19 +1,19 @@
 import json
 import os
 
-from PySide2.QtWidgets import QToolBar, QAction, QLabel
-
 import sd.api
-from settings import ExpressionType
 import sexparser
+from PySide6.QtGui import QAction
+from PySide6.QtWidgets import QLabel, QToolBar
 from sdutils import app, qt_mgr, ui_mgr
-from ui.window import get_main_window
-
+from settings import ExpressionType
 from ui.editortab import EditorTab
+from ui.window import get_main_window
 
 style_sheet = """
 QToolButton {color: lightyellow; font: bold}
 """
+
 
 class SexToolBar(QToolBar):
     def __init__(self, graph_view_id, qt_ui_mgr):
@@ -40,7 +40,6 @@ class SexToolBar(QToolBar):
         window = get_main_window()
         pkg: sd.api.SDPackage = graph.getPackage()
 
-        
         package_tab = window.find_package_tab(pkg)
         if package_tab is not None:
             window.ui.tabs.setCurrentWidget(package_tab)
@@ -53,7 +52,6 @@ class SexToolBar(QToolBar):
         if pkg_path:
             pkg_name = os.path.splitext(os.path.basename(pkg_path))[0]
 
-        
         window.add_editor_tab(editor_tab, pkg_name)
         window.ui.tabs.setCurrentWidget(editor_tab)
 
@@ -73,7 +71,6 @@ class SexToolBar(QToolBar):
 
         elif isinstance(graph, sd.api.SDSBSFunctionGraph):
             self.open_funcgraph_expression_editor()
-
 
     def open_compgraph_expression_editor(self):
         graph: sd.api.SDGraph = ui_mgr.getCurrentGraph()
@@ -104,9 +101,8 @@ class SexToolBar(QToolBar):
         except sd.api.APIException:
             pass
 
-
     def open_funcgraph_expression_editor(self):
-        
+
         graph: sd.api.SDGraph = ui_mgr.getCurrentGraph()
         window = get_main_window()
 
@@ -132,8 +128,11 @@ class SexToolBar(QToolBar):
 
         for i in range(graph_objects.getSize()):
             graph_object = graph_objects.getItem(i)
-            
-            if isinstance(graph_object, sd.api.SDGraphObjectFrame) and graph_object.getTitle() == "snippet":
+
+            if (
+                isinstance(graph_object, sd.api.SDGraphObjectFrame)
+                and graph_object.getTitle() == "snippet"
+            ):
                 found_snippet = True
                 graph_object: sd.api.SDGraphObjectFrame
                 src = graph_object.getDescription()
@@ -148,9 +147,15 @@ class SexToolBar(QToolBar):
                 new_frame_object = sd.api.SDGraphObjectFrame.sNew(graph)
 
                 new_frame_object.setTitle("snippet")
-                new_frame_object.setPosition(sd.api.sdbasetypes.float2(-sexparser.grid_size * 8.8, -sexparser.grid_size * 0.5))
+                new_frame_object.setPosition(
+                    sd.api.sdbasetypes.float2(
+                        -sexparser.grid_size * 8.8, -sexparser.grid_size * 0.5
+                    )
+                )
                 new_frame_object.setColor(sd.api.sdbasetypes.ColorRGBA(0.145, 0.145, 0.145, 1.0))
-                new_frame_object.setSize(sd.api.sdbasetypes.float2(sexparser.grid_size * 8, sexparser.grid_size * 20))
+                new_frame_object.setSize(
+                    sd.api.sdbasetypes.float2(sexparser.grid_size * 8, sexparser.grid_size * 20)
+                )
                 editor_tab.frame_object = new_frame_object
 
             if user_data_string is not None:

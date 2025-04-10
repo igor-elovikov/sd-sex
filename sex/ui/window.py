@@ -3,19 +3,17 @@ from __future__ import annotations
 from time import gmtime, strftime
 from typing import Iterator
 
-from PySide2.QtGui import QFont
-from PySide2.QtWidgets import QMainWindow, QApplication
-
+import sd.api as sda
+from PySide6.QtGui import QFont
+from PySide6.QtWidgets import QApplication, QMainWindow
+from sdutils import qt_mgr
+from settings import ExpressionType, PluginSettings, get_plugin_icon
 from ui.editortab import EditorTab
 
 from . import sexeditor
-from settings import PluginSettings, get_plugin_icon, ExpressionType
-from sdutils import qt_mgr
-
-import sd.api as sda
-
 
 main_window: MainWindow = None
+
 
 def get_main_window() -> MainWindow:
     global main_window
@@ -27,10 +25,12 @@ def get_main_window() -> MainWindow:
     else:
         return main_window
 
+
 style_sheet = """
 QToolBar {spacing: 1}
 QToolButton {padding: 4; margin: 2}
 """
+
 
 class MainWindow(QMainWindow):
 
@@ -67,14 +67,14 @@ class MainWindow(QMainWindow):
         font = QFont(self.plugin_settings["font"])
         font.setStyleHint(QFont.Monospace)
         font.setPointSize(plugin_settings["editor_font_size"])
-        
+
         QApplication.setFont(font, "CodeEditor")
 
         width = plugin_settings["window_size"][0]
         height = plugin_settings["window_size"][1]
         pos_x = plugin_settings["window_pos"][0]
         pos_y = plugin_settings["window_pos"][1]
-        #self.setGeometry(pos_x, pos_y, width, height)
+        # self.setGeometry(pos_x, pos_y, width, height)
         self.move(pos_x, pos_y)
         self.resize(width, height)
 
@@ -104,11 +104,25 @@ class MainWindow(QMainWindow):
         graph_url = graph.getUrl()
         if not graph_url:
             return None
-        return next((t for t in self.editor_tabs() if t.expr_type is not ExpressionType.PACKAGE and t.graph.getUrl() == graph_url), None)
+        return next(
+            (
+                t
+                for t in self.editor_tabs()
+                if t.expr_type is not ExpressionType.PACKAGE and t.graph.getUrl() == graph_url
+            ),
+            None,
+        )
 
     def find_package_tab(self, pkg: sda.SDPackage) -> sda.SDGraph:
         pkg_path = pkg.getFilePath()
-        return next((t for t in self.editor_tabs() if t.expr_type is ExpressionType.PACKAGE and t.package.getFilePath() == pkg_path), None)
+        return next(
+            (
+                t
+                for t in self.editor_tabs()
+                if t.expr_type is ExpressionType.PACKAGE and t.package.getFilePath() == pkg_path
+            ),
+            None,
+        )
 
     def on_save_current(self):
         current_tab: EditorTab = self.ui.tabs.currentWidget()
@@ -119,7 +133,6 @@ class MainWindow(QMainWindow):
         tab: EditorTab
         for tab in self.editor_tabs():
             tab.toggle_rendered_code(self.ui.actionShowTemplate.isChecked())
-
 
     def on_compile(self):
         current_tab: EditorTab = self.ui.tabs.currentWidget()

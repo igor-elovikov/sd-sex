@@ -1,26 +1,27 @@
 from __future__ import annotations
 
-import os
 import json
-
+import os
 from enum import Enum, auto
 
-from PySide2.QtGui import QIcon
-       
+from PySide6.QtGui import QIcon
+
+
 def get_plugin_icon(filename: str) -> QIcon:
     path = os.path.dirname(os.path.abspath(__file__))
     path = os.path.join(path, "icons", filename)
     return QIcon(path)
+
 
 class ExpressionType(Enum):
     FUNCTION_GRAPH = auto()
     COMPOSITE_GRAPH = auto()
     PACKAGE = auto()
 
+
 class PluginSettings:
     def __init__(self):
-        self._json_defaults = \
-        """
+        self._json_defaults = """
 {
     "window_size": [
         1463,
@@ -44,7 +45,7 @@ class PluginSettings:
         self.settings = {}
         self.defaults = json.loads(self._json_defaults)
         self.load()
-       
+
     def __getitem__(self, key):
         if key in self.settings:
             return self.settings[key]
